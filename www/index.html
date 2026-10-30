@@ -12,6 +12,7 @@
 </head>
 <body>
 
+<div class="blob b1"></div><div class="blob b2"></div>
 <section id="auth" class="screen active">
   <div class="auth-wrap">
     <div class="brand"><span class="brand-mark"></span>Payday</div>
@@ -33,9 +34,9 @@
   </div>
 </section>
 
-<section id="home" class="screen">
+<section id="shell" class="screen">
   <header class="top">
-    <div class="month">
+    <div class="month" id="monthBar">
       <button id="prev" aria-label="Previous month">‹</button>
       <span id="monthLabel"></span>
       <button id="next" aria-label="Next month">›</button>
@@ -43,23 +44,35 @@
     <button id="logout" class="ghost" aria-label="Log out">Log out</button>
   </header>
 
-  <div class="hero">
-    <div class="tank" id="tank"><div class="fill" id="fill"></div></div>
-    <div class="hero-text">
-      <div class="label" id="leftLabel">Left to spend</div>
-      <div class="big" id="leftAmt">0</div>
-      <div class="pair"><span>Income</span><b id="incAmt">0</b></div>
-      <div class="pair"><span>Spent</span><b id="expAmt">0</b></div>
+  <div id="home" class="tab on">
+    <div class="hero">
+      <div class="tank" id="tank"><div class="fill" id="fill"></div></div>
+      <div class="hero-text">
+        <div class="label" id="leftLabel">Left to spend</div>
+        <div class="big" id="leftAmt">0</div>
+        <div class="pair"><span>Income</span><b id="incAmt">0</b></div>
+        <div class="pair"><span>Spent</span><b id="expAmt">0</b></div>
+      </div>
     </div>
+    <div class="card safe"><div><div class="label">Safe to spend per day</div><b id="perDay">-</b></div><span class="pill" id="daysLeft"></span></div>
+    <h2 class="list-title">Entries</h2>
+    <div id="list"></div>
   </div>
 
-  <h2 class="list-title">Entries</h2>
-  <div id="list"></div>
-
-  <button id="fab" class="fab" aria-label="Add entry">+</button>
+  <div id="loans" class="tab"><div id="loanBody"></div></div>
+  <div id="save" class="tab"><div id="saveBody"></div></div>
 </section>
 
+<button id="fab" class="fab" aria-label="Add">+</button>
+<nav class="nav" id="nav">
+  <i></i>
+  <button class="on" data-t="home"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Home</button>
+  <button data-t="loans"><svg viewBox="0 0 24 24"><path d="M7 7h12l-3-3M17 17H5l3 3"/></svg>Loans</button>
+  <button data-t="save"><svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9M15 6h5v5"/></svg>Savings</button>
+</nav>
+
 <div id="overlay" class="overlay"></div>
+
 <div id="sheet" class="sheet" aria-hidden="true">
   <div class="grab"></div>
   <div class="seg" id="typeSeg" data-i="0">
@@ -75,6 +88,26 @@
   </div>
   <p id="sheetMsg" class="msg" role="status"></p>
   <button id="saveBtn" class="primary"><span>Save entry</span></button>
+</div>
+
+<div id="loanSheet" class="sheet" aria-hidden="true">
+  <div class="grab"></div>
+  <div class="seg" id="loanSeg" data-i="0">
+    <i class="seg-ind"></i>
+    <button type="button" data-k="lent" class="on">I lent</button>
+    <button type="button" data-k="borrowed">I borrowed</button>
+  </div>
+  <label class="fl">Person or lender<input id="lPerson" type="text" maxlength="40" placeholder="e.g. Ravi, HDFC"></label>
+  <div class="row2">
+    <label>EMI amount<input id="lEmi" inputmode="decimal" placeholder="5000"></label>
+    <label>Total EMIs<input id="lTotal" inputmode="numeric" placeholder="12"></label>
+  </div>
+  <div class="row2">
+    <label>EMIs already paid<input id="lPaid" inputmode="numeric" placeholder="0"></label>
+    <label>Next due date<input id="lDue" type="date"></label>
+  </div>
+  <p id="loanMsg" class="msg" role="status"></p>
+  <button id="loanSave" class="primary"><span>Save loan</span></button>
 </div>
 
 <script src="config.js"></script>
