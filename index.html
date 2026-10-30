@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F1B2D">
+<title>Payday</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<section id="auth" class="screen active">
+  <div class="auth-wrap">
+    <div class="brand"><span class="brand-mark"></span>Payday</div>
+    <h1>See where your salary goes.</h1>
+    <p class="sub">Log your salary, log what you spend, watch what is left.</p>
+
+    <div class="seg" id="authSeg" data-i="0">
+      <i class="seg-ind"></i>
+      <button type="button" data-mode="login" class="on">Log in</button>
+      <button type="button" data-mode="signup">Sign up</button>
+    </div>
+
+    <form id="authForm" novalidate>
+      <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="At least 6 characters"></label>
+      <p id="authMsg" class="msg" role="status"></p>
+      <button id="authBtn" class="primary" type="submit"><span>Log in</span></button>
+    </form>
+  </div>
+</section>
+
+<section id="home" class="screen">
+  <header class="top">
+    <div class="month">
+      <button id="prev" aria-label="Previous month">‹</button>
+      <span id="monthLabel"></span>
+      <button id="next" aria-label="Next month">›</button>
+    </div>
+    <button id="logout" class="ghost" aria-label="Log out">Log out</button>
+  </header>
+
+  <div class="hero">
+    <div class="tank" id="tank"><div class="fill" id="fill"></div></div>
+    <div class="hero-text">
+      <div class="label" id="leftLabel">Left to spend</div>
+      <div class="big" id="leftAmt">0</div>
+      <div class="pair"><span>Income</span><b id="incAmt">0</b></div>
+      <div class="pair"><span>Spent</span><b id="expAmt">0</b></div>
+    </div>
+  </div>
+
+  <h2 class="list-title">Entries</h2>
+  <div id="list"></div>
+
+  <button id="fab" class="fab" aria-label="Add entry">+</button>
+</section>
+
+<div id="overlay" class="overlay"></div>
+<div id="sheet" class="sheet" aria-hidden="true">
+  <div class="grab"></div>
+  <div class="seg" id="typeSeg" data-i="0">
+    <i class="seg-ind"></i>
+    <button type="button" data-type="expense" class="on">Expense</button>
+    <button type="button" data-type="income">Salary / income</button>
+  </div>
+  <div class="amount-row"><span id="curSym"></span><input id="amount" inputmode="decimal" placeholder="0" autocomplete="off"></div>
+  <div id="chips" class="chips"></div>
+  <div class="row2">
+    <label>Date<input id="date" type="date"></label>
+    <label>Note<input id="note" type="text" maxlength="80" placeholder="Optional"></label>
+  </div>
+  <p id="sheetMsg" class="msg" role="status"></p>
+  <button id="saveBtn" class="primary"><span>Save entry</span></button>
+</div>
+
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

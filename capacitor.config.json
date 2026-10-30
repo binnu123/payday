@@ -1,0 +1,6 @@
+{
+  "appId": "com.payday.tracker",
+  "appName": "Payday",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}
