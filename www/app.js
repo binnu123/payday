@@ -1,4 +1,18 @@
 (() => {
+  /* splash: plays ~3s, tap to skip */
+  const sp = document.getElementById('splash');
+  if (sp) {
+    let gone = false;
+    const out = () => {
+      if (gone) return; gone = true;
+      sp.animate([{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(1.18)' }],
+        { duration: 600, easing: 'cubic-bezier(.5,0,.8,.4)', fill: 'forwards' })
+        .onfinish = () => { sp.remove(); window.dispatchEvent(new Event('splash-done')); };
+    };
+    sp.onclick = out; setTimeout(out, 3200);
+  }
+})();
+(() => {
   const cfg = window.APP_CONFIG || {};
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
@@ -96,6 +110,7 @@
     if (t === 'home') renderHome(true); if (t === 'loans') renderLoans(true); if (t === 'save') renderSave(true);
   }
   $$('#nav button').forEach(b => b.onclick = () => switchTab(b.dataset.t));
+  window.addEventListener('splash-done', () => { if (inApp) switchTab(tab); });
 
   /* ---------- helpers ---------- */
   function countUp(el, to, f = m0) {
