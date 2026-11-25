@@ -156,6 +156,37 @@ do $$ begin
   end if;
 end $$;
 
+-- Split circles are private to their owner; member names are local contacts.
+create table if not exists public.split_circles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title text not null check (length(trim(title)) between 1 and 80),
+  members jsonb not null check (jsonb_typeof(members) = 'array'),
+  created_at timestamptz not null default now(),
+  unique (id, user_id)
+);
+create table if not exists public.split_circle_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  circle_id uuid not null,
+  kind text not null check (kind in ('expense', 'settlement')),
+  data jsonb not null check (jsonb_typeof(data) = 'object'),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  foreign key (circle_id, user_id) references public.split_circles(id, user_id) on delete cascade
+);
+alter table public.split_circles enable row level security;
+alter table public.split_circle_entries enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'split_circles' and policyname = 'own rows') then
+    create policy "own rows" on public.split_circles for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'split_circle_entries' and policyname = 'own rows') then
+    create policy "own rows" on public.split_circle_entries for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  end if;
+end $$;
+create index if not exists split_circle_entries_owner_circle on public.split_circle_entries(user_id, circle_id, created_at);
+
 create table if not exists public.category_budgets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,

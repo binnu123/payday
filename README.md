@@ -18,3 +18,9 @@ Updates require network access and apply according to Capgo's update behavior; t
 The login screen uses an email recovery code. In Supabase Authentication > Email Templates > Reset Password, include `{{ .Token }}` in the message (for example, `<p>Your Payday recovery code is: {{ .Token }}</p>`), then save the template. Users request a code in the app, enter it along with a new password, and then log in. Configure Supabase email delivery for your users. The default link-only template will not display the code.
 
 Run the latest `supabase.sql` before using the updated loan form. New fixed EMI loans store an immutable start date; the next due date advances from that date as payments are recorded. Existing loans retain their current next due date because their original start date is not known.
+
+## Shared expenses
+
+Run the latest `supabase.sql` to create split circles and their activity records. In Split, create a group or a friend by entering at least two people, including yourself. Select it to add expenses, enter one or more amounts paid, choose participants and split equally, by exact amount, percentage, or shares. Balances and simplified payments are calculated from the saved expense and settlement history. Record a full or partial settlement, or edit or delete an activity to recalculate the balances. Previous single-bill splits remain below the group list.
+
+Groups and named contacts are private records owned by the current account. They do not invite, authenticate, notify, or synchronize with other people's Payday accounts. The ledger does not create salary or spending transactions. Amounts are stored in minor currency units; the final remainder is assigned deterministically.

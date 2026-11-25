@@ -222,6 +222,14 @@ body.in-app .fab:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--
 .budget-field input { width:48%; }
 #budgetSheet { max-height:85vh; overflow-y:auto; }
 #splitSheet { max-height:85vh; overflow-y:auto; }
+#circleSheet { max-height:85vh; overflow-y:auto; }
+.circle-member { padding:10px 0; border-bottom:1px solid var(--line); }
+.circle-member label { display:flex; align-items:center; gap:8px; }
+.circle-member input[type=checkbox] { width:auto; margin:0; }
+.circle-member input[type=number] { margin-top:6px; }
+.circle-actions { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+.circle-group { display:block; width:100%; text-align:left; margin:8px 0; }
+#circleFields textarea, #circleFields select { display:block; width:100%; margin:6px 0 14px; padding:12px; color:inherit; background:var(--surface2); border:1px solid var(--line); border-radius:12px; font:inherit; }
 #loanSheet, #flexPaymentSheet { max-height:85vh; overflow-y:auto; }
 #flexHistorySheet { max-height:85vh; overflow-y:auto; }
 .nav { background:rgba(22,20,16,.97); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); }

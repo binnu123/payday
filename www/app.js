@@ -44,6 +44,7 @@
   let txs = [], loans = [], budgets = [], shares = [], splitGroups = [], splitErr = '', groupErr = '', budgetErr = '', editingTx = null, editingLoan = null;
   let flexLoans = [], flexPayments = [], flexErr = '', loanMode = 'emi', paymentLoan = null, editingPayment = null;
   let signingUp = false, recovering = false, editingSplit = null;
+  let circles = [], circleEntries = [], circleErr = '', activeCircle = null, circleSubmit = null;
 
   const show = id => $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
   const setBusy = (b, on) => { b.disabled = on; b.classList.toggle('busy', on); };
@@ -121,9 +122,10 @@
     budgets = data || []; budgetErr = error ? error.message : '';
   }
   async function loadShares() {
-    const [old, groups] = await Promise.all([sb.from('split_shares').select('*').order('created_at', { ascending: false }), sb.from('split_groups').select('*').order('created_at', { ascending: false })]);
+    const [old, groups, spaces, entries] = await Promise.all([sb.from('split_shares').select('*').order('created_at', { ascending: false }), sb.from('split_groups').select('*').order('created_at', { ascending: false }), sb.from('split_circles').select('*').order('created_at', { ascending: false }), sb.from('split_circle_entries').select('*').order('created_at', { ascending: false })]);
     shares = old.data || []; splitErr = old.error ? old.error.message : '';
     splitGroups = groups.data || []; groupErr = groups.error ? groups.error.message : '';
+    circles = spaces.data || []; circleEntries = entries.data || []; circleErr = (spaces.error || entries.error)?.message || '';
   }
   let loanErr = '';
   async function loadAll(animate = true) {
@@ -143,6 +145,7 @@
     $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
     $('#nav i').style.transform = `translateX(${names.indexOf(t) * 100}%)`;
     $$('.tab').forEach(x => x.classList.toggle('on', x.id === t));
+    $('#fab').style.display = t === 'splitTab' ? 'none' : '';
     $('#monthBar').style.visibility = t === 'loans' || t === 'splitTab' ? 'hidden' : 'visible';
     $('.screen.active')?.scrollTo(0, 0);
     if (t === 'home') renderHome(true); if (t === 'loans') renderLoans(true); if (t === 'save') renderSave(true);
@@ -232,22 +235,140 @@
     });
   }
 
+  const circleRows = id => circleEntries.filter(e => e.circle_id === id);
+  const circleNet = (circle, entries) => SplitMath.balances(circle.members, entries.filter(e => e.kind === 'expense').map(e => e.data), entries.filter(e => e.kind === 'settlement').map(e => e.data));
+  const centsInput = (value, label) => {
+    const raw = String(value).trim(); if (!/^\d+(\.\d{1,2})?$/.test(raw)) throw new Error('Enter a valid ' + label + ' with at most two decimals.');
+    const parts = raw.split('.'), amount = Number(parts[0]) * 100 + Number((parts[1] || '').padEnd(2, '0'));
+    if (!Number.isSafeInteger(amount)) throw new Error(label + ' is too large.'); return amount;
+  };
+  const circleButton = (label, fn) => { const b = h('button', 'act', label); b.type = 'button'; b.onclick = fn; return b; };
+  function circleForm(title, submit) {
+    closeSheets(); $('#circleFormTitle').textContent = title; $('#circleFields').replaceChildren(); $('#circleMsg').textContent = ''; circleSubmit = submit;
+    $('#overlay').classList.add('open'); $('#circleSheet').classList.add('open');
+  }
+  function field(label, type, value) {
+    const wrapper = h('label', 'fl', label), input = h('input'); input.type = type; input.value = value || ''; wrapper.append(input); $('#circleFields').append(wrapper); return input;
+  }
+  function memberSelect(label, members, value) {
+    const wrapper = h('label', 'fl', label), select = h('select');
+    members.forEach(m => { const o = h('option', 0, m.name); o.value = m.id; select.append(o); });
+    if (value) select.value = value; wrapper.append(select); $('#circleFields').append(wrapper); return select;
+  }
+  function newCircle() {
+    circleForm('New group or friend', async () => {
+      const names = people.value.split('\n').map(s => s.trim()).filter(Boolean), title = name.value.trim();
+      if (!title || title.length > 80 || names.length < 2 || names.length > 50 || names.some(n => n.length > 40) || new Set(names.map(n => n.toLowerCase())).size !== names.length) throw new Error('Enter a title and 2–50 distinct names (one per line).');
+      const { data, error } = await sb.from('split_circles').insert({ title, members: names.map(n => ({ id: crypto.randomUUID(), name: n })) }).select().single();
+      if (error) throw error; activeCircle = data.id;
+    });
+    const name = field('Group or friend name', 'text', ''); name.maxLength = 80;
+    const label = h('label', 'fl', 'People (one name per line, including yourself)'), people = h('textarea'); people.rows = 4; label.append(people); $('#circleFields').append(label);
+  }
+  async function saveCircleEntry(circle, kind, data, existing) {
+    let result;
+    if (existing) result = await sb.from('split_circle_entries').update({ data, updated_at: new Date().toISOString() }).eq('id', existing.id).eq('updated_at', existing.updated_at).select();
+    else result = await sb.from('split_circle_entries').insert({ circle_id: circle.id, kind, data }).select();
+    if (result.error) throw result.error;
+    if (!result.data.length) throw new Error('This entry changed elsewhere. Close and reopen the group to refresh.');
+  }
+  function editCircleExpense(circle, existing = null) {
+    const old = existing?.data;
+    circleForm(existing ? 'Edit expense' : 'Add expense', async () => {
+      const description = title.value.trim(); if (!description || !date.value) throw new Error('Enter a description and date.');
+      const payers = rows.map(r => ({ id: r.id, cents: r.paid.value ? centsInput(r.paid.value, 'payment') : 0 })).filter(p => p.cents);
+      const total = payers.reduce((sum, p) => sum + p.cents, 0); if (!total || !Number.isSafeInteger(total)) throw new Error('Enter at least one payment.');
+      const selected = rows.filter(r => r.included.checked).map(r => ({ id: r.id, value: method.value === 'equal' ? 1 : centsInput(r.share.value, 'share') }));
+      const allocated = SplitMath.shares(total, selected, method.value);
+      await saveCircleEntry(circle, 'expense', { description, date: date.value, method: method.value, payers, shares: allocated, inputs: selected }, existing);
+    });
+    const title = field('Description', 'text', old?.description); title.maxLength = 80;
+    const date = field('Date', 'date', old?.date || ymd(new Date()));
+    const methodLabel = h('label', 'fl', 'Split method'), method = h('select');
+    [['equal','Equally'],['exact','Exact amounts'],['percentage','Percentages'],['shares','Shares']].forEach(([v, t]) => { const o = h('option', 0, t); o.value = v; method.append(o); });
+    method.value = old?.method || 'equal'; methodLabel.append(method); $('#circleFields').append(methodLabel);
+    $('#circleFields').append(h('p', 'small', 'Enter how much each payer paid. Select everyone sharing the expense.'));
+    const rows = circle.members.map(m => {
+      const row = h('div', 'circle-member'), label = h('label'), included = h('input'), paid = h('input'), share = h('input');
+      included.type = 'checkbox'; included.checked = old ? old.shares.some(s => s.id === m.id) : true;
+      paid.type = 'number'; paid.min = '0'; paid.step = '0.01'; paid.placeholder = 'Amount paid'; paid.setAttribute('aria-label', m.name + ' amount paid');
+      const existingPayer = old?.payers.find(p => p.id === m.id); if (existingPayer) paid.value = (existingPayer.cents / 100).toFixed(2);
+      share.type = 'number'; share.min = '0'; share.step = '0.01'; share.placeholder = 'Share'; share.setAttribute('aria-label', m.name + ' share');
+      const input = old?.inputs?.find(p => p.id === m.id); if (input) share.value = (input.value / 100).toFixed(2);
+      label.append(included, document.createTextNode(m.name)); row.append(label, paid, share); $('#circleFields').append(row);
+      return { id: m.id, included, paid, share };
+    });
+    const update = () => rows.forEach(r => { r.share.hidden = method.value === 'equal' || !r.included.checked; r.share.placeholder = method.value === 'percentage' ? 'Percent (e.g. 25)' : method.value === 'shares' ? 'Shares' : 'Amount owed'; });
+    method.onchange = update; rows.forEach(r => r.included.onchange = update); update();
+  }
+  function editCircleSettlement(circle, existing = null, preset = null) {
+    const old = existing?.data;
+    circleForm(existing ? 'Edit settlement' : 'Record settlement', async () => {
+      const amount = centsInput(value.value, 'settlement'); if (!amount || from.value === to.value || !date.value) throw new Error('Enter different people, a date and an amount greater than zero.');
+      const net = circleNet(circle, circleRows(circle.id).filter(e => e.id !== existing?.id));
+      if (net[from.value] >= 0 || net[to.value] <= 0 || amount > Math.min(-net[from.value], net[to.value])) throw new Error('The settlement exceeds the current amount owed between these balances.');
+      await saveCircleEntry(circle, 'settlement', { from: from.value, to: to.value, cents: amount, date: date.value }, existing);
+    });
+    const from = memberSelect('Paid by', circle.members, old?.from || preset?.from), to = memberSelect('Paid to', circle.members, old?.to || preset?.to);
+    const value = field('Amount', 'number', old ? (old.cents / 100).toFixed(2) : preset ? (preset.cents / 100).toFixed(2) : ''); value.min = '0.01'; value.step = '0.01';
+    const date = field('Date', 'date', old?.date || ymd(new Date()));
+  }
+  async function deleteCircleEntry(entry) {
+    if (!confirm('Delete this ' + entry.kind + '? Balances will be recalculated.')) return;
+    const { data, error } = await sb.from('split_circle_entries').delete().eq('id', entry.id).eq('updated_at', entry.updated_at).select();
+    if (error || !data.length) return alert(error?.message || 'This entry changed. Refresh and try again.');
+    await loadShares(); renderSplits();
+  }
+  function renderCircles(box) {
+    if (circleErr) { box.append(h('p', 'empty', 'Groups unavailable: ' + circleErr + '. Run the latest supabase.sql.')); return false; }
+    const circle = circles.find(c => c.id === activeCircle);
+    if (!circle) {
+      activeCircle = null; box.append(circleButton('New group or friend', newCircle));
+      circles.forEach(c => { const b = circleButton(c.title + ' · ' + c.members.length + ' people', () => { activeCircle = c.id; renderSplits(); }); b.classList.add('circle-group'); box.append(b); });
+      return false;
+    }
+    box.append(circleButton('← All groups', () => { activeCircle = null; renderSplits(); }), h('h3', 0, circle.title));
+    const entries = circleRows(circle.id), names = Object.fromEntries(circle.members.map(m => [m.id, m.name]));
+    let net;
+    try { net = circleNet(circle, entries); } catch (error) { box.append(h('p', 'empty', 'Could not calculate balances: ' + error.message)); return true; }
+    const controls = add(h('div', 'circle-actions'), circleButton('Add expense', () => editCircleExpense(circle)), circleButton('Record settlement', () => editCircleSettlement(circle))); box.append(controls);
+    const balanceCard = add(h('div', 'card'), h('b', 0, 'Balances'));
+    circle.members.forEach(m => balanceCard.append(h('p', 'small', m.name + ': ' + (net[m.id] > 0 ? 'gets back ' : net[m.id] < 0 ? 'owes ' : 'settled ') + money(Math.abs(net[m.id]) / 100))));
+    balanceCard.append(h('b', 0, 'Simplified debts'));
+    const transfers = SplitMath.simplify(net); if (!transfers.length) balanceCard.append(h('p', 'small', 'Everyone is settled.'));
+    transfers.forEach(t => balanceCard.append(add(h('div', 'payment-row'), h('span', 0, names[t.from] + ' pays ' + names[t.to] + ' ' + money(t.cents / 100)), circleButton('Settle', () => editCircleSettlement(circle, null, t))))); box.append(balanceCard);
+    box.append(h('h3', 'list-title', 'Activity'));
+    if (!entries.length) box.append(h('p', 'empty', 'No expenses or settlements yet.'));
+    entries.forEach(e => {
+      const data = e.data, card = h('div', 'card'), title = e.kind === 'expense' ? data.description : names[data.from] + ' paid ' + names[data.to];
+      const amount = e.kind === 'expense' ? data.payers.reduce((sum, p) => sum + p.cents, 0) : data.cents;
+      card.append(h('b', 0, title), h('p', 'small', data.date + ' · ' + money(amount / 100)));
+      if (e.kind === 'expense') { data.payers.forEach(p => card.append(h('p', 'small', names[p.id] + ' paid ' + money(p.cents / 100)))); data.shares.forEach(p => card.append(h('p', 'small', names[p.id] + ' owes ' + money(p.cents / 100)))); }
+      card.append(add(h('div', 'circle-actions'), circleButton('Edit', () => e.kind === 'expense' ? editCircleExpense(circle, e) : editCircleSettlement(circle, e)), circleButton('Delete', () => deleteCircleEntry(e)))); box.append(card);
+    });
+    return true;
+  }
+  $('#circleSave').onclick = async () => {
+    if (!circleSubmit) return; setBusy($('#circleSave'), true);
+    try { await circleSubmit(); closeSheets(); await loadShares(); renderSplits(); }
+    catch (error) { say($('#circleMsg'), error.message || 'Could not save.'); }
+    finally { setBusy($('#circleSave'), false); }
+  };
   function renderSplits() {
     const box = $('#splits'); box.replaceChildren();
     box.append(h('h2', 'pg', 'Split expenses'));
+    if (renderCircles(box)) return;
     if (groupErr) box.append(h('p', 'empty', 'Could not load group splits: ' + groupErr + '. Run the latest supabase.sql.'));
     splitGroups.forEach(group => {
       const card = h('div', 'card split-card'), people = group.payments;
-      const total = people.reduce((sum, p) => sum + p.cents, 0), base = Math.floor(total / people.length), extra = total % people.length;
-      const balances = people.map((p, i) => ({ name: p.name, cents: p.cents - base - (i < extra ? 1 : 0) }));
+      const total = people.reduce((sum, p) => sum + p.cents, 0);
+      const members = people.map((p, i) => ({ id: String(i), name: p.name }));
+      const net = SplitMath.balances(members, [{ payers: people.map((p, i) => ({ id: String(i), cents: p.cents })), shares: SplitMath.shares(total, members, 'equal') }], []);
       add(card, h('h3', 0, group.title), h('p', 'small', 'Total ' + money(total / 100) + ' · Split equally between ' + people.length));
       people.forEach(p => card.append(h('p', 'split-line', p.name + ' paid ' + money(p.cents / 100))));
-      const debtors = balances.filter(p => p.cents < 0), creditors = balances.filter(p => p.cents > 0);
-      if (!debtors.length) card.append(h('p', 'small', 'Everyone is even.'));
-      debtors.forEach(debtor => creditors.forEach(creditor => {
-        const amount = Math.min(-debtor.cents, creditor.cents);
-        if (amount > 0) { card.append(h('p', 'split-settlement', debtor.name + ' pays ' + creditor.name + ' ' + money(amount / 100))); debtor.cents += amount; creditor.cents -= amount; }
-      }));
+      const transfers = SplitMath.simplify(net);
+      if (!transfers.length) card.append(h('p', 'small', 'Everyone is even.'));
+      transfers.forEach(t => card.append(h('p', 'split-settlement', members[Number(t.from)].name + ' pays ' + members[Number(t.to)].name + ' ' + money(t.cents / 100))));
       const del = h('button', 'act', 'Delete');
       del.onclick = async () => {
         if (!window.confirm('Delete this split?')) return;
@@ -518,7 +639,7 @@
     const button = h('button', 'sheet-close', '✕'); button.type = 'button'; button.setAttribute('aria-label', 'Close');
     button.onclick = closeSheets; sheet.prepend(button);
   });
-  $('#fab').onclick = () => tab === 'loans' ? openLoan() : tab === 'splitTab' ? openSplit() : tab === 'budgetTab' ? openBudgets() : openEntry();
+  $('#fab').onclick = () => tab === 'loans' ? openLoan() : tab === 'splitTab' ? (circles.find(c => c.id === activeCircle) ? editCircleExpense(circles.find(c => c.id === activeCircle)) : newCircle()) : tab === 'budgetTab' ? openBudgets() : openEntry();
 
   function openMenuSheet(id) {
     closeSheets(); $('#overlay').classList.add('open'); $(id).classList.add('open'); $(id).setAttribute('aria-hidden', 'false');
