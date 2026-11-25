@@ -448,9 +448,8 @@
     $('#profileEmail').value = user.email || '';
     $('#profileMsg').textContent = ''; openMenuSheet('#profileSheet'); $('#profileName').focus();
   };
-  [['#menuHome', 'home'], ['#menuLoans', 'loans'], ['#menuSavings', 'save']].forEach(([selector, target]) => {
-    $(selector).onclick = () => { closeSheets(); switchTab(target); };
-  });
+  $('#menuSplits').onclick = () => { closeSheets(); switchTab('home'); $('#splits').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  $('#menuBudgets').onclick = () => { closeSheets(); switchTab('home'); $('#budgets').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('#profileForm').onsubmit = async e => {
     e.preventDefault(); const name = $('#profileName').value.trim();
     if (!name) return say($('#profileMsg'), 'Enter your display name.');

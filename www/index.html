@@ -41,7 +41,7 @@
       <span id="monthLabel"></span>
       <button id="next" aria-label="Next month">›</button>
     </div>
-    <button id="menuOpen" class="ghost" aria-label="Open menu" aria-haspopup="dialog">☰ Menu</button>
+    <button id="menuOpen" class="ghost menu-open" aria-label="Open menu" aria-haspopup="dialog">☰ &nbsp;Menu</button>
   </header>
 
   <div id="home" class="tab on">
@@ -76,13 +76,12 @@
 <div id="overlay" class="overlay"></div>
 
 <div id="menuSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle" aria-hidden="true">
-  <div class="grab"></div><h2 id="menuTitle">Menu</h2>
-  <button id="menuProfile" class="menu-item">Profile</button>
-  <button id="menuHome" class="menu-item">Home</button>
-  <button id="menuLoans" class="menu-item">Loans and reminders</button>
-  <button id="menuSavings" class="menu-item">Savings</button>
-  <button id="logout" class="menu-item">Log out</button>
-  <button id="menuClose" class="act">Close</button>
+  <div class="grab"></div>
+  <div class="menu-heading"><div><div class="menu-eyebrow">Payday</div><h2 id="menuTitle">Your menu</h2></div><button id="menuClose" class="menu-close" aria-label="Close menu">✕</button></div>
+  <button id="menuProfile" class="menu-item"><span class="menu-icon" aria-hidden="true">◉</span><span class="menu-copy"><b>Profile</b><small>Manage your account details</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
+  <button id="menuSplits" class="menu-item"><span class="menu-icon" aria-hidden="true">⇄</span><span class="menu-copy"><b>Split expenses</b><small>Track shared bills and repayments</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
+  <button id="menuBudgets" class="menu-item"><span class="menu-icon" aria-hidden="true">◫</span><span class="menu-copy"><b>Category budgets</b><small>Set and manage monthly limits</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
+  <button id="logout" class="menu-item menu-logout"><span class="menu-icon" aria-hidden="true">↪</span><span class="menu-copy"><b>Log out</b><small>Sign out of your account</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
 </div>
 
 <div id="profileSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle" aria-hidden="true">
