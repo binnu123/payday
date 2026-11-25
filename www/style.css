@@ -222,6 +222,8 @@ body.in-app .fab:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--
 .budget-field input { width:48%; }
 #budgetSheet { max-height:85vh; overflow-y:auto; }
 #splitSheet { max-height:85vh; overflow-y:auto; }
+#loanSheet, #flexPaymentSheet { max-height:85vh; overflow-y:auto; }
+#loanModeSeg { margin-bottom:12px; }
 .split-actions { display:flex; gap:8px; flex-wrap:wrap; }
 .split-person { display:flex; gap:8px; align-items:center; margin:8px 0; }
 .split-person input { min-width:0; width:40%; }

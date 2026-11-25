@@ -76,6 +76,49 @@ end $$;
 
 create index if not exists loans_user_created on public.loans (user_id, created_at desc);
 
+create table if not exists public.flexible_loans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  kind text not null check (kind in ('lent', 'borrowed')),
+  person text not null check (length(trim(person)) between 1 and 40),
+  principal numeric(12,2) not null check (principal > 0),
+  created_at timestamptz not null default now()
+);
+create table if not exists public.flexible_loan_payments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  loan_id uuid not null references public.flexible_loans(id) on delete cascade,
+  amount numeric(12,2) not null check (amount > 0),
+  date date not null,
+  created_at timestamptz not null default now()
+);
+alter table public.flexible_loans enable row level security;
+alter table public.flexible_loan_payments enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'flexible_loans' and policyname = 'own rows') then
+    create policy "own rows" on public.flexible_loans for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'flexible_loan_payments' and policyname = 'read own rows') then
+    create policy "read own rows" on public.flexible_loan_payments for select using (auth.uid() = user_id);
+  end if;
+end $$;
+
+create or replace function public.record_flexible_payment(p_loan uuid, p_amount numeric, p_date date)
+returns void language plpgsql security definer set search_path = public as $$
+declare l public.flexible_loans%rowtype; paid numeric;
+begin
+  if auth.uid() is null or p_amount is null or p_amount <= 0 or p_amount <> round(p_amount, 2) or p_date is null then raise exception 'Invalid payment'; end if;
+  select * into l from public.flexible_loans where id = p_loan and user_id = auth.uid() for update;
+  if not found then raise exception 'Loan not found'; end if;
+  select coalesce(sum(amount), 0) into paid from public.flexible_loan_payments where loan_id = l.id;
+  if p_amount > l.principal - paid then raise exception 'Payment exceeds remaining balance'; end if;
+  insert into public.flexible_loan_payments(user_id, loan_id, amount, date) values (auth.uid(), l.id, p_amount, p_date);
+  insert into public.transactions(user_id, type, amount, category, note, date)
+    values (auth.uid(), case when l.kind = 'lent' then 'income' else 'expense' end, p_amount, 'Other', case when l.kind = 'lent' then 'Loan received from ' else 'Loan paid to ' end || l.person, p_date);
+end $$;
+revoke all on function public.record_flexible_payment(uuid, numeric, date) from public;
+grant execute on function public.record_flexible_payment(uuid, numeric, date) to authenticated;
+
 create table if not exists public.split_groups (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,

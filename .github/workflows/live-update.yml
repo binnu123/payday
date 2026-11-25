@@ -1,0 +1,29 @@
+name: Publish live update
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_version:
+        description: Unique semantic version for this web update (for example 1.0.1)
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Set bundle version
+        env:
+          BUNDLE_VERSION: ${{ inputs.bundle_version }}
+        run: npm version "$BUNDLE_VERSION" --no-git-tag-version --allow-same-version
+      - name: Publish web bundle
+        env:
+          CAPGO_TOKEN: ${{ secrets.CAPGO_TOKEN }}
+        run: npx --yes @capgo/cli@latest bundle upload --channel production

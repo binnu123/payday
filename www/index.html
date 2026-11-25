@@ -124,13 +124,15 @@
 
 <div id="loanSheet" class="sheet" aria-hidden="true">
   <div class="grab"></div>
+  <div class="seg" id="loanModeSeg" data-i="0"><i class="seg-ind"></i><button type="button" data-mode="emi" class="on">Fixed EMI</button><button type="button" data-mode="flexible">Flexible</button></div>
   <div class="seg" id="loanSeg" data-i="0">
     <i class="seg-ind"></i>
     <button type="button" data-k="lent" class="on">I lent</button>
     <button type="button" data-k="borrowed">I borrowed</button>
   </div>
   <label class="fl">Person or lender<input id="lPerson" type="text" maxlength="40" placeholder="e.g. Ravi, HDFC"></label>
-  <div class="row2">
+  <div id="flexLoanFields" hidden><label class="fl">Total loan amount<input id="lPrincipal" type="number" min="0.01" step="0.01" inputmode="decimal"></label></div>
+  <div id="emiLoanFields"><div class="row2">
     <label>EMI amount<input id="lEmi" inputmode="decimal" placeholder="5000"></label>
     <label>Total EMIs<input id="lTotal" inputmode="numeric" placeholder="12"></label>
   </div>
@@ -138,8 +140,14 @@
     <label>EMIs already paid<input id="lPaid" inputmode="numeric" placeholder="0"></label>
     <label>Next due date<input id="lDue" type="date"></label>
   </div>
-  <p id="loanMsg" class="msg" role="status"></p>
+  </div><p id="loanMsg" class="msg" role="status"></p>
   <button id="loanSave" class="primary"><span>Save loan</span></button>
+</div>
+<div id="flexPaymentSheet" class="sheet" aria-hidden="true">
+  <div class="grab"></div><h2>Record payment</h2><p id="flexPaymentInfo" class="small"></p>
+  <label>Amount<input id="flexAmount" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
+  <label>Date<input id="flexDate" type="date"></label>
+  <p id="flexPaymentMsg" class="msg" role="status"></p><button id="flexPaymentSave" class="primary">Save payment</button>
 </div>
 
 <div id="budgetSheet" class="sheet" aria-hidden="true">

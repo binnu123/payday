@@ -42,6 +42,7 @@
   let user = null, inApp = false, mode = 'login', type = 'expense', cat = 'Food', lkind = 'lent', lf = 'all', tab = 'home';
   let month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
   let txs = [], loans = [], budgets = [], shares = [], splitGroups = [], splitErr = '', groupErr = '', budgetErr = '', editingTx = null, editingLoan = null;
+  let flexLoans = [], flexPayments = [], flexErr = '', loanMode = 'emi', paymentLoan = null;
 
   const show = id => $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
   const setBusy = (b, on) => { b.disabled = on; b.classList.toggle('busy', on); };
@@ -87,8 +88,9 @@
     txs = data;
   }
   async function loadLoans() {
-    const { data, error } = await sb.from('loans').select('*').order('created_at', { ascending: false });
-    if (error) { loans = []; loanErr = error.message; } else { loans = data; loanErr = ''; }
+    const [fixed, flexible, payments] = await Promise.all([sb.from('loans').select('*').order('created_at', { ascending: false }), sb.from('flexible_loans').select('*').order('created_at', { ascending: false }), sb.from('flexible_loan_payments').select('*').order('date', { ascending: false }).order('created_at', { ascending: false })]);
+    loans = fixed.data || []; loanErr = fixed.error ? fixed.error.message : '';
+    flexLoans = flexible.data || []; flexPayments = payments.data || []; flexErr = (flexible.error || payments.error)?.message || '';
   }
   async function loadBudgets() {
     const { data, error } = await sb.from('category_budgets').select('*').eq('month', ymd(month));
@@ -308,6 +310,7 @@
     d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); return ymd(d);
   }
   const fmtDue = s => new Date(s + 'T00:00:00').toLocaleDateString('en', { day: 'numeric', month: 'short' });
+  const flexPaid = l => flexPayments.filter(p => p.loan_id === l.id).reduce((sum, p) => sum + Number(p.amount), 0);
 
   const notifications = () => window.Capacitor && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins.LocalNotifications;
   async function cancelReminders() {
@@ -362,10 +365,11 @@
     const reminderStatus = h('p', 'small', 'Get a reminder at 9 AM one day before an EMI is due.');
     const reminderButton = h('button', 'act', localStorage.getItem('payday-reminders-' + user.id) === 'on' ? 'Turn off reminders' : 'Enable EMI reminders');
     reminderButton.onclick = () => toggleReminders(reminderButton, reminderStatus); box.append(reminderStatus, reminderButton);
-    const sum = k => loans.filter(l => l.kind === k).reduce((a, l) => a + rem(l), 0);
+    if (flexErr) box.append(h('p', 'empty', 'Could not load flexible loans: ' + flexErr + '. Run the latest supabase.sql.'));
+    const sum = k => loans.filter(l => l.kind === k).reduce((a, l) => a + rem(l), 0) + flexLoans.filter(l => l.kind === k).reduce((a, l) => a + Math.max(0, Number(l.principal) - flexPaid(l)), 0);
     const tile = (lbl, cls, v) => { const b = h('b', cls, '0'); countUp(b, v); return add(h('div', 'card'), h('span', 'label', lbl), b); };
     box.append(add(h('div', 'tiles'), tile("You'll receive", 'mint', sum('lent')), tile('You owe', 'coral', sum('borrowed'))));
-    if (!loans.length) return box.append(h('p', 'empty', 'No loans yet. Tap + to track money you lent or borrowed.'));
+    if (!loans.length && !flexLoans.length) return box.append(h('p', 'empty', 'No loans yet. Tap + to track money you lent or borrowed.'));
 
     const chips = h('div', 'fchips');
     [['all', 'All'], ['lent', 'I lent'], ['borrowed', 'I borrowed']].forEach(([k, t]) => {
@@ -373,6 +377,18 @@
       c.onclick = () => { lf = k; renderLoans(false); }; chips.append(c);
     });
     box.append(chips);
+    flexLoans.filter(l => lf === 'all' || l.kind === lf).forEach(l => {
+      const paid = flexPaid(l), remaining = Math.max(0, Number(l.principal) - paid), card = h('div', 'card');
+      add(card, h('h3', 0, l.person), h('p', 'small', (l.kind === 'lent' ? 'You lent ' : 'You borrowed ') + money(Number(l.principal)) + ' · Flexible payments'),
+        h('p', 0, 'Remaining ' + money(remaining)), bar(paid / Number(l.principal) * 100, l.kind === 'lent' ? '' : 'out'));
+      const history = h('details'); history.append(h('summary', 0, 'Payment history'));
+      const entries = flexPayments.filter(p => p.loan_id === l.id);
+      if (!entries.length) history.append(h('p', 'small', 'No payments yet.'));
+      entries.forEach(p => history.append(h('p', 'small', p.date + ' · ' + money(Number(p.amount))))); card.append(history);
+      const pay = h('button', 'act', remaining ? 'Record payment' : 'Fully settled'); pay.disabled = !remaining;
+      pay.onclick = () => { paymentLoan = l; $('#flexAmount').value = ''; $('#flexDate').value = ymd(new Date()); $('#flexPaymentInfo').textContent = l.person + ' · Remaining ' + money(remaining); $('#flexPaymentMsg').textContent = ''; $('#overlay').classList.add('open'); $('#flexPaymentSheet').classList.add('open'); };
+      card.append(pay); box.append(card);
+    });
     loans.filter(l => lf === 'all' || l.kind === lf).forEach((l, i) => {
       const lent = l.kind === 'lent', od = overdue(l), done = closed(l);
       const card = h('div', 'card' + (animate ? ' pop-in' : '')); card.style.setProperty('--i', i);
@@ -537,14 +553,25 @@
   };
 
   seg('loanSeg', 'k', k => { lkind = k; });
+  seg('loanModeSeg', 'mode', m => { loanMode = m; $('#flexLoanFields').hidden = m !== 'flexible'; $('#emiLoanFields').hidden = m === 'flexible'; });
   function openLoan(loan = null) {
     editingLoan = loan; lkind = loan ? loan.kind : 'lent';
+    loanMode = 'emi'; $('#loanModeSeg').dataset.i = 0; $$('#loanModeSeg button').forEach(b => { b.classList.toggle('on', b.dataset.mode === 'emi'); b.disabled = !!loan; });
+    $('#flexLoanFields').hidden = true; $('#emiLoanFields').hidden = false; $('#lPrincipal').value = '';
     $('#loanSeg').dataset.i = lkind === 'lent' ? 0 : 1; $$('#loanSeg button').forEach(b => b.classList.toggle('on', b.dataset.k === lkind));
     $('#loanSave span').textContent = loan ? 'Update loan' : 'Save loan';
     $('#lPerson').value = loan ? loan.person : ''; $('#lEmi').value = loan ? loan.emi : ''; $('#lTotal').value = loan ? loan.total_emis : ''; $('#lPaid').value = loan ? loan.paid_emis : ''; $('#lDue').value = loan ? loan.next_due : ymd(new Date()); $('#loanMsg').textContent = '';
     $('#overlay').classList.add('open'); $('#loanSheet').classList.add('open'); setTimeout(() => $('#lPerson').focus(), 380);
   }
   $('#loanSave').onclick = async () => {
+    if (loanMode === 'flexible') {
+      const person = $('#lPerson').value.trim(), principal = Number($('#lPrincipal').value);
+      if (!person || !Number.isFinite(principal) || principal <= 0) return say($('#loanMsg'), 'Enter a name and a loan amount greater than zero.');
+      setBusy($('#loanSave'), true);
+      const { error } = await sb.from('flexible_loans').insert({ kind: lkind, person, principal });
+      setBusy($('#loanSave'), false); if (error) return say($('#loanMsg'), error.message);
+      closeSheets(); await loadLoans(); renderLoans(true); return;
+    }
     const person = $('#lPerson').value.trim(), emi = parseFloat($('#lEmi').value.replace(/,/g, '')),
       total = parseInt($('#lTotal').value, 10), paid = parseInt($('#lPaid').value || '0', 10), due = $('#lDue').value;
     const msg = $('#loanMsg');
@@ -562,4 +589,16 @@
     if (localStorage.getItem('payday-reminders-' + user.id) === 'on') { try { await scheduleReminders(); } catch (e) { console.warn(e); } }
     renderLoans(true);
   };
+  $('#flexPaymentSave').onclick = async () => {
+    const amount = Number($('#flexAmount').value), date = $('#flexDate').value;
+    if (!paymentLoan || !Number.isFinite(amount) || amount <= 0 || !date) return say($('#flexPaymentMsg'), 'Enter a valid amount and date.');
+    setBusy($('#flexPaymentSave'), true);
+    const { error } = await sb.rpc('record_flexible_payment', { p_loan: paymentLoan.id, p_amount: amount, p_date: date });
+    setBusy($('#flexPaymentSave'), false); if (error) return say($('#flexPaymentMsg'), error.message);
+    closeSheets(); const d = new Date(date + 'T00:00:00'); month = new Date(d.getFullYear(), d.getMonth(), 1); await loadAll(false);
+  };
+  // Confirm successful startup so the updater can retain the new bundle.
+  if (window.Capacitor && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins.CapacitorUpdater) {
+    window.Capacitor.Plugins.CapacitorUpdater.notifyAppReady().catch(error => console.warn('Live update initialization failed', error));
+  }
 })();
