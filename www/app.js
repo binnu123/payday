@@ -43,6 +43,7 @@
   let month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
   let txs = [], loans = [], budgets = [], shares = [], splitGroups = [], splitErr = '', groupErr = '', budgetErr = '', editingTx = null, editingLoan = null;
   let flexLoans = [], flexPayments = [], flexErr = '', loanMode = 'emi', paymentLoan = null;
+  let signingUp = false, recovering = false, editingSplit = null;
 
   const show = id => $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
   const setBusy = (b, on) => { b.disabled = on; b.classList.toggle('busy', on); };
@@ -63,16 +64,39 @@
     const email = $('#email').value.trim(), password = $('#password').value;
     if (!email || password.length < 6) return say($('#authMsg'), 'Enter an email and a password of at least 6 characters.');
     setBusy($('#authBtn'), true);
-    const res = mode === 'login' ? await sb.auth.signInWithPassword({ email, password }) : await sb.auth.signUp({ email, password });
+    const signup = mode === 'signup'; signingUp = signup;
+    const res = signup ? await sb.auth.signUp({ email, password }) : await sb.auth.signInWithPassword({ email, password });
+    if (signup && res.data?.session) await sb.auth.signOut();
+    signingUp = false;
     setBusy($('#authBtn'), false);
     if (res.error) return say($('#authMsg'), res.error.message);
-    if (!res.data.session) say($('#authMsg'), 'Account created. Check your email to confirm it, then log in.', true);
+    if (signup) { $('#authSeg button[data-mode="login"]').click(); $('#password').value = ''; say($('#authMsg'), res.data.session ? 'Account created. Please log in.' : 'Account created. Confirm your email if required, then log in.', true); }
   };
   $('#logout').onclick = async () => { closeSheets(); await cancelReminders(); await sb.auth.signOut(); };
-  sb.auth.onAuthStateChange((_e, session) => setTimeout(() => {
+  sb.auth.onAuthStateChange((_e, session) => { if (signingUp || recovering) return; setTimeout(() => {
     if (session) { user = session.user; if (!inApp) { inApp = true; enterApp(); } }
     else { closeSheets(); user = null; inApp = false; document.body.classList.remove('in-app'); show('auth'); }
-  }, 0));
+  }, 0); });
+  $('#forgotPassword').onclick = () => { $('#authForm').hidden = true; $('#authSeg').hidden = true; $('#forgotPassword').hidden = true; $('#recoveryForm').hidden = false; $('#recoveryEmail').value = $('#email').value.trim(); $('#recoveryMsg').textContent = ''; };
+  $('#recoveryBack').onclick = () => { $('#recoveryForm').hidden = true; $('#authForm').hidden = false; $('#authSeg').hidden = false; $('#forgotPassword').hidden = false; };
+  $('#sendRecovery').onclick = async () => {
+    const email = $('#recoveryEmail').value.trim(); if (!email) return say($('#recoveryMsg'), 'Enter your email address.');
+    setBusy($('#sendRecovery'), true); const { error } = await sb.auth.resetPasswordForEmail(email); setBusy($('#sendRecovery'), false);
+    say($('#recoveryMsg'), error ? error.message : 'If the account exists, a recovery email has been sent.', !error);
+  };
+  $('#recoveryForm').onsubmit = async e => {
+    e.preventDefault(); const email = $('#recoveryEmail').value.trim(), token = $('#recoveryCode').value.trim(), password = $('#recoveryPassword').value;
+    if (!email || !token || password.length < 6) return say($('#recoveryMsg'), 'Enter your email, recovery code, and a password of at least 6 characters.');
+    setBusy($('#recoverSave'), true); recovering = true;
+    let recoverySession = false;
+    try {
+      const verified = await sb.auth.verifyOtp({ email, token, type: 'recovery' }); if (verified.error) return say($('#recoveryMsg'), verified.error.message);
+      recoverySession = true;
+      const updated = await sb.auth.updateUser({ password }); if (updated.error) return say($('#recoveryMsg'), updated.error.message);
+      $('#recoveryForm').reset(); $('#recoveryBack').click(); $('#email').value = email; say($('#authMsg'), 'Password changed. Please log in.', true);
+    } catch (error) { say($('#recoveryMsg'), error.message || 'Could not reset password.'); }
+    finally { if (recoverySession) await sb.auth.signOut(); recovering = false; setBusy($('#recoverSave'), false); }
+  };
   function enterApp() {
     $('#authForm').reset(); $('#authMsg').textContent = '';
     document.body.classList.add('in-app'); show('shell'); switchTab('home'); loadAll();
@@ -182,15 +206,12 @@
       const edit = h('button', 'del icon-action'); edit.setAttribute('aria-label', 'Edit ' + (t.note || t.category));
       edit.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-.8L19 8.2 15.8 5 4.8 16zM14.5 6.3l3.2 3.2"/></svg>'; edit.onclick = () => openEntry(t);
       const del = h('button', 'del icon-action'); del.setAttribute('aria-label', 'Delete ' + (t.note || t.category));
-      const trash = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 4h4M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>'; del.innerHTML = trash; let timer;
+      const trash = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 4h4M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>'; del.innerHTML = trash;
       del.onclick = async () => {
-        if (!del.classList.contains('sure')) {
-          del.classList.add('sure'); del.textContent = 'Sure?'; del.setAttribute('aria-label', 'Confirm delete ' + (t.note || t.category));
-          timer = setTimeout(() => { del.classList.remove('sure'); del.innerHTML = trash; del.setAttribute('aria-label', 'Delete ' + (t.note || t.category)); }, 2500); return;
-        }
-        clearTimeout(timer); row.classList.add('removing');
+        if (!window.confirm('Delete this transaction?')) return;
+        row.classList.add('removing');
         const { error } = await sb.from('transactions').delete().eq('id', t.id);
-        if (error) return row.classList.remove('removing');
+        if (error) { row.classList.remove('removing'); return alert(error.message); }
         later(() => { txs = txs.filter(x => x.id !== t.id); renderHome(false); if (tab === 'save') renderSave(false); }, 300);
       };
       add(row, add(h('div', 'ico'), iconFor(t.type, t.category) && document.createTextNode(iconFor(t.type, t.category))), meta,
@@ -215,13 +236,14 @@
         const amount = Math.min(-debtor.cents, creditor.cents);
         if (amount > 0) { card.append(h('p', 'split-settlement', debtor.name + ' pays ' + creditor.name + ' ' + money(amount / 100))); debtor.cents += amount; creditor.cents -= amount; }
       }));
-      const del = h('button', 'act', 'Delete'); let confirmDelete = false;
+      const del = h('button', 'act', 'Delete');
       del.onclick = async () => {
-        if (!confirmDelete) { confirmDelete = true; del.textContent = 'Confirm delete'; setTimeout(() => { confirmDelete = false; del.textContent = 'Delete'; }, 3000); return; }
+        if (!window.confirm('Delete this split?')) return;
         setBusy(del, true); const { error } = await sb.from('split_groups').delete().eq('id', group.id);
         if (error) { setBusy(del, false); return alert(error.message); } await loadShares(); renderSplits();
       };
-      card.append(del); box.append(card);
+      const edit = h('button', 'act', 'Edit'); edit.onclick = () => openSplit(group);
+      card.append(add(h('div', 'btns'), edit, del)); box.append(card);
     });
     if (splitErr) return box.append(h('p', 'empty', 'Could not load splits: ' + splitErr + '. Run the latest supabase.sql.'));
     if (!shares.length) { if (!splitGroups.length && !groupErr) box.append(h('p', 'empty', 'Tap + to create a split and see who owes whom.')); return; }
@@ -239,24 +261,28 @@
       add(card, h('b', 0, s.description), h('p', 'small', s.person + ' · ' + money(Number(s.amount)) + (s.settled ? ' · Settled' : ' · Owes you')), action); box.append(card);
     });
   }
-  function addSplitPerson() {
+  function refreshSplitRemove() { $$('#splitPeople .split-person button').forEach(b => { b.hidden = $$('#splitPeople .split-person').length <= 2; }); }
+  function addSplitPerson(payment = null) {
     const row = h('div', 'split-person'), person = h('input'), amount = h('input'), remove = h('button', 'act', 'Remove');
     person.placeholder = 'Name'; person.maxLength = 40; person.setAttribute('aria-label', 'Person name');
     amount.type = 'number'; amount.min = '0'; amount.step = '0.01'; amount.placeholder = 'Paid'; amount.setAttribute('aria-label', 'Amount paid');
-    remove.type = 'button'; remove.onclick = () => row.remove(); add(row, person, amount, remove); $('#splitPeople').append(row);
+    if (payment) { person.value = payment.name; amount.value = (payment.cents / 100).toFixed(2); }
+    remove.type = 'button'; remove.onclick = () => { row.remove(); refreshSplitRemove(); }; add(row, person, amount, remove); $('#splitPeople').append(row); refreshSplitRemove();
   }
-  function openSplit() {
-    $('#splitDescription').value = ''; $('#splitMsg').textContent = '';
-    $('#splitPeople').replaceChildren(); addSplitPerson(); addSplitPerson();
+  function openSplit(group = null) {
+    editingSplit = group; $('#splitDescription').value = group ? group.title : ''; $('#splitMsg').textContent = '';
+    $('#splitSave span').textContent = group ? 'Update split' : 'Save split';
+    $('#splitPeople').replaceChildren(); if (group) group.payments.forEach(addSplitPerson); else { addSplitPerson(); addSplitPerson(); }
     $('#overlay').classList.add('open'); $('#splitSheet').classList.add('open');
   }
-  $('#splitAddPerson').onclick = addSplitPerson;
+  $('#splitAddPerson').onclick = () => addSplitPerson();
   $('#splitSave').onclick = async () => {
     const description = $('#splitDescription').value.trim();
     const people = $$('#splitPeople .split-person').map(row => ({ name: row.children[0].value.trim(), raw: row.children[1].value }));
     if (!description || people.length < 2 || people.some(p => !p.name || !/^\d+(\.\d{1,2})?$/.test(p.raw) || !Number.isSafeInteger(Math.round(Number(p.raw) * 100))) || new Set(people.map(p => p.name.toLowerCase())).size !== people.length || people.every(p => Number(p.raw) === 0)) return say($('#splitMsg'), 'Enter a title, at least two different names, and valid amounts paid (use 0 if needed).');
     setBusy($('#splitSave'), true);
-    const { error } = await sb.from('split_groups').insert({ title: description, payments: people.map(p => ({ name: p.name, cents: Math.round(Number(p.raw) * 100) })) });
+    const values = { title: description, payments: people.map(p => ({ name: p.name, cents: Math.round(Number(p.raw) * 100) })) };
+    const { error } = editingSplit ? await sb.from('split_groups').update(values).eq('id', editingSplit.id) : await sb.from('split_groups').insert(values);
     setBusy($('#splitSave'), false); if (error) return say($('#splitMsg'), error.message);
     closeSheets(); await loadShares(); renderSplits();
   };
@@ -309,6 +335,11 @@
     d.setDate(1); d.setMonth(d.getMonth() + 1);
     d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); return ymd(d);
   }
+  function dueFromStart(start, offset) {
+    const date = new Date(start + 'T00:00:00'), day = date.getDate();
+    date.setDate(1); date.setMonth(date.getMonth() + offset);
+    date.setDate(Math.min(day, new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate())); return ymd(date);
+  }
   const fmtDue = s => new Date(s + 'T00:00:00').toLocaleDateString('en', { day: 'numeric', month: 'short' });
   const flexPaid = l => flexPayments.filter(p => p.loan_id === l.id).reduce((sum, p) => sum + Number(p.amount), 0);
 
@@ -347,8 +378,10 @@
   async function payEmi(l, btn) {
     setBusy(btn, true);
     const lent = l.kind === 'lent';
-    const u = await sb.from('loans').update({ paid_emis: l.paid_emis + 1, next_due: nextMonth(l.next_due) }).eq('id', l.id);
+    if (l.start_date && l.start_date > ymd(new Date())) { setBusy(btn, false); return alert('This loan has not started yet.'); }
+    const u = await sb.from('loans').update({ paid_emis: l.paid_emis + 1, next_due: l.start_date ? dueFromStart(l.start_date, l.paid_emis + 1) : nextMonth(l.next_due) }).eq('id', l.id).eq('paid_emis', l.paid_emis).select('id');
     if (u.error) { setBusy(btn, false); return; }
+    if (!u.data.length) { setBusy(btn, false); await loadLoans(); renderLoans(false); return alert('This loan changed. Please review it and try again.'); }
     await sb.from('transactions').insert({
       type: lent ? 'income' : 'expense', amount: l.emi, category: 'EMI',
       note: (lent ? 'EMI received from ' : 'EMI paid to ') + l.person, date: ymd(new Date())
@@ -364,7 +397,7 @@
     if (loanErr) return box.append(h('p', 'empty', 'Could not load loans: ' + loanErr + '. Run supabase.sql in Supabase.'));
     const reminderStatus = h('p', 'small', 'Get a reminder at 9 AM one day before an EMI is due.');
     const reminderButton = h('button', 'act', localStorage.getItem('payday-reminders-' + user.id) === 'on' ? 'Turn off reminders' : 'Enable EMI reminders');
-    reminderButton.onclick = () => toggleReminders(reminderButton, reminderStatus); box.append(reminderStatus, reminderButton);
+    reminderButton.onclick = () => toggleReminders(reminderButton, reminderStatus); box.append(add(h('div', 'reminder-row'), reminderStatus, reminderButton));
     if (flexErr) box.append(h('p', 'empty', 'Could not load flexible loans: ' + flexErr + '. Run the latest supabase.sql.'));
     const sum = k => loans.filter(l => l.kind === k).reduce((a, l) => a + rem(l), 0) + flexLoans.filter(l => l.kind === k).reduce((a, l) => a + Math.max(0, Number(l.principal) - flexPaid(l)), 0);
     const tile = (lbl, cls, v) => { const b = h('b', cls, '0'); countUp(b, v); return add(h('div', 'card'), h('span', 'label', lbl), b); };
@@ -399,13 +432,11 @@
         add(h('div', 'lr'), h('span', 0, `${l.paid_emis} of ${l.total_emis} EMIs`), add(h('span'), document.createTextNode('Remaining '), h('b', 0, money(rem(l))))),
         bar(l.paid_emis / l.total_emis * 100, lent ? '' : 'out'));
       const pay = h('button', 'act' + (done ? ' done' : ''), done ? 'Fully settled' : lent ? 'Mark received' : 'Mark paid');
-      pay.disabled = done; pay.onclick = () => payEmi(l, pay);
-      const x = h('button', 'act x', 'Delete'); let timer;
+      pay.disabled = done || !!(l.start_date && l.start_date > ymd(new Date())); pay.onclick = () => payEmi(l, pay);
+      const x = h('button', 'act x', 'Delete');
       x.onclick = async () => {
-        if (!x.classList.contains('sure')) {
-          x.classList.add('sure'); x.textContent = 'Sure?'; timer = setTimeout(() => { x.classList.remove('sure'); x.textContent = 'Delete'; }, 2500); return;
-        }
-        clearTimeout(timer); await sb.from('loans').delete().eq('id', l.id); await loadLoans();
+        if (!window.confirm('Delete this loan?')) return;
+        const { error } = await sb.from('loans').delete().eq('id', l.id); if (error) return alert(error.message); await loadLoans();
         if (localStorage.getItem('payday-reminders-' + user.id) === 'on') { try { await scheduleReminders(); } catch (e) { console.warn(e); } }
         renderLoans(false);
       };
@@ -560,7 +591,7 @@
     $('#flexLoanFields').hidden = true; $('#emiLoanFields').hidden = false; $('#lPrincipal').value = '';
     $('#loanSeg').dataset.i = lkind === 'lent' ? 0 : 1; $$('#loanSeg button').forEach(b => b.classList.toggle('on', b.dataset.k === lkind));
     $('#loanSave span').textContent = loan ? 'Update loan' : 'Save loan';
-    $('#lPerson').value = loan ? loan.person : ''; $('#lEmi').value = loan ? loan.emi : ''; $('#lTotal').value = loan ? loan.total_emis : ''; $('#lPaid').value = loan ? loan.paid_emis : ''; $('#lDue').value = loan ? loan.next_due : ymd(new Date()); $('#loanMsg').textContent = '';
+    $('#lPerson').value = loan ? loan.person : ''; $('#lEmi').value = loan ? loan.emi : ''; $('#lTotal').value = loan ? loan.total_emis : ''; $('#lPaid').value = loan ? loan.paid_emis : ''; $('#lDue').value = loan ? (loan.start_date || loan.next_due) : ymd(new Date()); $('#lDue').disabled = !!loan; $('#lDue').parentElement.firstChild.textContent = loan && !loan.start_date ? 'Existing next due date' : 'Loan start date'; $('#loanMsg').textContent = '';
     $('#overlay').classList.add('open'); $('#loanSheet').classList.add('open'); setTimeout(() => $('#lPerson').focus(), 380);
   }
   $('#loanSave').onclick = async () => {
@@ -579,9 +610,11 @@
     if (!(emi > 0)) return say(msg, 'Enter the EMI amount.');
     if (!(total > 0)) return say(msg, 'Enter the total number of EMIs.');
     if (!(paid >= 0) || paid > total) return say(msg, 'Paid EMIs cannot be more than total EMIs.');
-    if (!due) return say(msg, 'Pick the next due date.');
+    if (!due) return say(msg, 'Pick the loan start date.');
     setBusy($('#loanSave'), true);
-    const values = { kind: lkind, person, emi, total_emis: total, paid_emis: paid, next_due: due };
+    const start = editingLoan ? editingLoan.start_date : due;
+    const values = { kind: lkind, person, emi, total_emis: total, paid_emis: paid, next_due: start ? dueFromStart(start, paid) : editingLoan.next_due };
+    if (!editingLoan) values.start_date = start;
     const { error } = editingLoan ? await sb.from('loans').update(values).eq('id', editingLoan.id) : await sb.from('loans').insert(values);
     setBusy($('#loanSave'), false);
     if (error) return say(msg, error.message);

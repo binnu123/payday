@@ -36,6 +36,16 @@
         <p id="authMsg" class="msg" role="status"></p>
         <button id="authBtn" class="primary" type="submit"><span>Log in</span></button>
       </form>
+      <button id="forgotPassword" type="button" class="ghost">Forgot password?</button>
+      <form id="recoveryForm" hidden>
+        <label>Email<input id="recoveryEmail" type="email" autocomplete="email" required></label>
+        <button id="sendRecovery" class="act" type="button">Send recovery code</button>
+        <label>Recovery code<input id="recoveryCode" inputmode="numeric" autocomplete="one-time-code"></label>
+        <label>New password<input id="recoveryPassword" type="password" autocomplete="new-password" minlength="6"></label>
+        <p id="recoveryMsg" class="msg" role="status"></p>
+        <button id="recoverSave" class="primary" type="submit">Reset password</button>
+        <button id="recoveryBack" class="ghost" type="button">Back to login</button>
+      </form>
     </div>
   </section>
 
@@ -125,9 +135,6 @@
         class="menu-copy"><b>Test notification</b><small>Send a notification to this device</small></span><span
         class="menu-arrow" aria-hidden="true">›</span></button>
     <p id="testNotificationMsg" class="msg" role="status"></p>
-    <button id="logout" class="menu-item menu-logout"><span class="menu-icon" aria-hidden="true">↪</span><span
-        class="menu-copy"><b>Log out</b><small>Sign out of your account</small></span><span class="menu-arrow"
-        aria-hidden="true">›</span></button>
   </div>
 
   <div id="profileSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle"
@@ -151,6 +158,7 @@
       <p id="passwordMsg" class="msg" role="status"></p>
       <button id="passwordSave" class="primary" type="submit"><span>Change password</span></button>
     </form>
+    <button id="logout" class="act" type="button">Log out</button>
     <button id="profileClose" class="act" type="button">Close</button>
   </div>
 
@@ -192,7 +200,7 @@
       </div>
       <div class="row2">
         <label>EMIs already paid<input id="lPaid" inputmode="numeric" placeholder="0"></label>
-        <label>Next due date<input id="lDue" type="date"></label>
+        <label>Loan start date<input id="lDue" type="date"></label>
       </div>
     </div>
     <p id="loanMsg" class="msg" role="status"></p>

@@ -12,3 +12,9 @@ The app includes the Capgo updater. To activate it, register `com.payday.tracker
 Build and install an APK containing the updater once. For subsequent web-only changes, push the code, then run GitHub Actions > "Publish live update" on the desired branch with a unique semantic bundle version (for example `1.0.1`). The workflow is manual so database migrations and native compatibility can be checked before release. Test the first update on a device and use Capgo's channel controls to roll back if necessary.
 
 Updates require network access and apply according to Capgo's update behavior; they do not change native plugins, Android permissions or native configuration. Such changes still require a new APK. Apply any required Supabase SQL migrations separately before releasing the dependent web bundle. Do not put private credentials in the web bundle.
+
+## Password recovery
+
+The login screen uses an email recovery code. In Supabase Authentication > Email Templates > Reset Password, include `{{ .Token }}` in the message (for example, `<p>Your Payday recovery code is: {{ .Token }}</p>`), then save the template. Users request a code in the app, enter it along with a new password, and then log in. Configure Supabase email delivery for your users. The default link-only template will not display the code.
+
+Run the latest `supabase.sql` before using the updated loan form. New fixed EMI loans store an immutable start date; the next due date advances from that date as payments are recorded. Existing loans retain their current next due date because their original start date is not known.

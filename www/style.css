@@ -255,6 +255,10 @@ body.in-app .fab:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--
 .menu-arrow { color:var(--muted); font-size:22px; }
 .menu-logout b { color:#e5a69d; }
 #profileSheet .act { margin-top:14px; }
+.reminder-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:12px 0; }
+.reminder-row p { flex:1 1 180px; margin:0; }
+.split-person button[hidden] { display:none; }
+[hidden] { display:none !important; }
 #profileSheet { max-height:85vh; overflow-y:auto; }
 #passwordForm { margin-top:24px; padding-top:12px; border-top:1px solid var(--line); }
 .item { gap:6px; padding:12px 8px; }

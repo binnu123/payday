@@ -65,6 +65,7 @@ create table if not exists public.loans (
 );
 
 alter table public.loans enable row level security;
+alter table public.loans add column if not exists start_date date;
 
 do $$
 begin
