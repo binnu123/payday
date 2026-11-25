@@ -80,9 +80,13 @@
           <div class="label">Safe to spend per day</div><b id="perDay">-</b>
         </div><span class="pill" id="daysLeft"></span>
       </div>
-      <h2 class="list-title">Entries</h2>
-      <div id="list"></div>
+      <h2 class="list-title">Loan overview · all time</h2>
+      <div class="tiles" id="homeLoans"></div>
+      <h2 class="list-title">Spending this month</h2>
+      <div class="card" id="homeSpending"></div>
     </div>
+
+    <div id="expenses" class="tab"><h2 class="pg">Expenses &amp; income</h2><p class="small">Entries for the selected month</p><div id="list"></div></div>
 
     <div id="loans" class="tab">
       <div id="loanBody"></div>
@@ -104,6 +108,7 @@
     <button class="on" data-t="home"><svg viewBox="0 0 24 24">
         <path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" />
       </svg>Home</button>
+    <button data-t="expenses"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></svg>Expenses</button>
     <button data-t="loans"><svg viewBox="0 0 24 24">
         <path d="M7 7h12l-3-3M17 17H5l3 3" />
       </svg>Loans</button>

@@ -139,7 +139,7 @@
   /* ---------- tabs ---------- */
   function switchTab(t) {
     tab = t;
-    const names = ['home', 'loans', 'save', 'splitTab', 'budgetTab'];
+    const names = ['home', 'expenses', 'loans', 'save', 'splitTab', 'budgetTab'];
     $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
     $('#nav i').style.transform = `translateX(${names.indexOf(t) * 100}%)`;
     $$('.tab').forEach(x => x.classList.toggle('on', x.id === t));
@@ -193,6 +193,18 @@
     const d = daysLeft();
     $('#perDay').textContent = d && left > 0 ? m0(left / d) : '-';
     $('#daysLeft').textContent = d ? `for ${d} day${d > 1 ? 's' : ''}` : 'past month';
+
+    const overview = $('#homeLoans'); overview.replaceChildren();
+    if (loanErr || flexErr) overview.append(h('p', 'small', 'Loan overview unavailable. Check the Loans tab.'));
+    else {
+      const loanSum = kind => loans.filter(l => l.kind === kind).reduce((a, l) => a + rem(l), 0) + flexLoans.filter(l => l.kind === kind).reduce((a, l) => a + Math.max(0, Number(l.principal) - flexPaid(l)), 0);
+      [['You will receive', 'lent'], ['You owe', 'borrowed']].forEach(([label, kind]) => overview.append(add(h('div', 'card'), h('span', 'label', label), h('b', kind === 'lent' ? 'mint' : 'coral', money(loanSum(kind))))));
+    }
+    const spending = $('#homeSpending'); spending.replaceChildren();
+    const categories = {}; txs.filter(t => t.type === 'expense').forEach(t => { categories[t.category] = (categories[t.category] || 0) + Number(t.amount); });
+    const sorted = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+    if (!sorted.length) spending.append(h('p', 'small', 'No expenses for this month yet.'));
+    else sorted.forEach(([category, amount]) => spending.append(add(h('div', 'pair'), h('span', 0, iconFor('expense', category) + ' ' + category), h('b', 0, money(amount)))));
 
     renderBudgets();
     renderSplits();
