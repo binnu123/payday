@@ -72,7 +72,7 @@
     if (res.error) return say($('#authMsg'), res.error.message);
     if (signup) { $('#authSeg button[data-mode="login"]').click(); $('#password').value = ''; say($('#authMsg'), res.data.session ? 'Account created. Please log in.' : 'Account created. Confirm your email if required, then log in.', true); }
   };
-  $('#logout').onclick = async () => { closeSheets(); await cancelReminders(); await sb.auth.signOut(); };
+  $('#logout').onclick = async () => { if (!window.confirm('Do you want to log out?')) return; closeSheets(); await cancelReminders(); await sb.auth.signOut(); };
   sb.auth.onAuthStateChange((_e, session) => { if (signingUp || recovering) return; setTimeout(() => {
     if (session) { user = session.user; if (!inApp) { inApp = true; enterApp(); } }
     else { closeSheets(); user = null; inApp = false; document.body.classList.remove('in-app'); show('auth'); }
@@ -516,7 +516,11 @@
 
   /* ---------- sheets ---------- */
   const closeSheets = () => { $('#overlay').classList.remove('open'); $$('.sheet').forEach(s => { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); }); document.activeElement.blur(); };
-  $('#overlay').onclick = closeSheets;
+  $$('.sheet').forEach(sheet => {
+    if (sheet.id === 'menuSheet') return;
+    const button = h('button', 'sheet-close', '✕'); button.type = 'button'; button.setAttribute('aria-label', 'Close');
+    button.onclick = closeSheets; sheet.prepend(button);
+  });
   $('#fab').onclick = () => tab === 'loans' ? openLoan() : tab === 'splitTab' ? openSplit() : tab === 'budgetTab' ? openBudgets() : openEntry();
 
   function openMenuSheet(id) {
@@ -536,7 +540,6 @@
     finally { setBusy(button, false); }
   };
   $('#menuClose').onclick = closeSheets;
-  $('#profileClose').onclick = closeSheets;
   $('#menuProfile').onclick = () => {
     $('#profileName').value = user.user_metadata?.display_name || '';
     $('#profileEmail').value = user.email || '';

@@ -261,6 +261,7 @@ body.in-app .fab:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--
 .split-person button[hidden] { display:none; }
 [hidden] { display:none !important; }
 #profileSheet { max-height:85vh; overflow-y:auto; }
+.sheet-close { position:absolute; right:20px; top:16px; z-index:1; width:36px; height:36px; border-radius:50%; background:var(--surface2); color:var(--muted); }
 #passwordForm { margin-top:24px; padding-top:12px; border-top:1px solid var(--line); }
 .item { gap:6px; padding:12px 8px; }
 .item .meta b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
