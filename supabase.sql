@@ -95,6 +95,7 @@ create table if not exists public.flexible_loan_payments (
 );
 alter table public.flexible_loans enable row level security;
 alter table public.flexible_loan_payments enable row level security;
+alter table public.flexible_loan_payments add column if not exists transaction_id uuid references public.transactions(id) on delete set null;
 do $$ begin
   if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'flexible_loans' and policyname = 'own rows') then
     create policy "own rows" on public.flexible_loans for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -106,19 +107,40 @@ end $$;
 
 create or replace function public.record_flexible_payment(p_loan uuid, p_amount numeric, p_date date)
 returns void language plpgsql security definer set search_path = public as $$
-declare l public.flexible_loans%rowtype; paid numeric;
+declare l public.flexible_loans%rowtype; paid numeric; transaction_uuid uuid;
 begin
   if auth.uid() is null or p_amount is null or p_amount <= 0 or p_amount <> round(p_amount, 2) or p_date is null then raise exception 'Invalid payment'; end if;
   select * into l from public.flexible_loans where id = p_loan and user_id = auth.uid() for update;
   if not found then raise exception 'Loan not found'; end if;
   select coalesce(sum(amount), 0) into paid from public.flexible_loan_payments where loan_id = l.id;
   if p_amount > l.principal - paid then raise exception 'Payment exceeds remaining balance'; end if;
-  insert into public.flexible_loan_payments(user_id, loan_id, amount, date) values (auth.uid(), l.id, p_amount, p_date);
   insert into public.transactions(user_id, type, amount, category, note, date)
-    values (auth.uid(), case when l.kind = 'lent' then 'income' else 'expense' end, p_amount, 'Other', case when l.kind = 'lent' then 'Loan received from ' else 'Loan paid to ' end || l.person, p_date);
+    values (auth.uid(), case when l.kind = 'lent' then 'income' else 'expense' end, p_amount, 'Other', case when l.kind = 'lent' then 'Loan received from ' else 'Loan paid to ' end || l.person, p_date) returning id into transaction_uuid;
+  insert into public.flexible_loan_payments(user_id, loan_id, amount, date, transaction_id) values (auth.uid(), l.id, p_amount, p_date, transaction_uuid);
 end $$;
 revoke all on function public.record_flexible_payment(uuid, numeric, date) from public;
 grant execute on function public.record_flexible_payment(uuid, numeric, date) to authenticated;
+
+create or replace function public.update_flexible_payment(p_payment uuid, p_amount numeric, p_date date)
+returns void language plpgsql security definer set search_path = public as $$
+declare pay public.flexible_loan_payments%rowtype; l public.flexible_loans%rowtype; paid numeric;
+begin
+  if auth.uid() is null or p_amount is null or p_amount <= 0 or p_amount <> round(p_amount, 2) or p_date is null then raise exception 'Invalid payment'; end if;
+  select * into pay from public.flexible_loan_payments where id = p_payment and user_id = auth.uid();
+  if not found then raise exception 'Payment not found'; end if;
+  select * into l from public.flexible_loans where id = pay.loan_id and user_id = auth.uid() for update;
+  if not found then raise exception 'Loan not found'; end if;
+  select * into pay from public.flexible_loan_payments where id = p_payment and user_id = auth.uid() for update;
+  if not found then raise exception 'Payment not found'; end if;
+  if pay.transaction_id is null then raise exception 'This older payment has no linked transaction and cannot be edited automatically'; end if;
+  select coalesce(sum(amount), 0) into paid from public.flexible_loan_payments where loan_id = l.id and id <> pay.id;
+  if p_amount > l.principal - paid then raise exception 'Payment exceeds remaining balance'; end if;
+  update public.transactions set amount = p_amount, date = p_date where id = pay.transaction_id and user_id = auth.uid();
+  if not found then raise exception 'Linked transaction not found'; end if;
+  update public.flexible_loan_payments set amount = p_amount, date = p_date where id = pay.id;
+end $$;
+revoke all on function public.update_flexible_payment(uuid, numeric, date) from public;
+grant execute on function public.update_flexible_payment(uuid, numeric, date) to authenticated;
 
 create table if not exists public.split_groups (
   id uuid primary key default gen_random_uuid(),

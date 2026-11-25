@@ -42,7 +42,7 @@
   let user = null, inApp = false, mode = 'login', type = 'expense', cat = 'Food', lkind = 'lent', lf = 'all', tab = 'home';
   let month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
   let txs = [], loans = [], budgets = [], shares = [], splitGroups = [], splitErr = '', groupErr = '', budgetErr = '', editingTx = null, editingLoan = null;
-  let flexLoans = [], flexPayments = [], flexErr = '', loanMode = 'emi', paymentLoan = null;
+  let flexLoans = [], flexPayments = [], flexErr = '', loanMode = 'emi', paymentLoan = null, editingPayment = null;
   let signingUp = false, recovering = false, editingSplit = null;
 
   const show = id => $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
@@ -426,13 +426,10 @@
       const paid = flexPaid(l), remaining = Math.max(0, Number(l.principal) - paid), card = h('div', 'card');
       add(card, h('h3', 0, l.person), h('p', 'small', (l.kind === 'lent' ? 'You lent ' : 'You borrowed ') + money(Number(l.principal)) + ' · Flexible payments'),
         h('p', 0, 'Remaining ' + money(remaining)), bar(paid / Number(l.principal) * 100, l.kind === 'lent' ? '' : 'out'));
-      const history = h('details'); history.append(h('summary', 0, 'Payment history'));
-      const entries = flexPayments.filter(p => p.loan_id === l.id);
-      if (!entries.length) history.append(h('p', 'small', 'No payments yet.'));
-      entries.forEach(p => history.append(h('p', 'small', p.date + ' · ' + money(Number(p.amount))))); card.append(history);
+      const history = h('button', 'act', 'Payment history'); history.onclick = () => openFlexHistory(l);
       const pay = h('button', 'act', remaining ? 'Record payment' : 'Fully settled'); pay.disabled = !remaining;
-      pay.onclick = () => { paymentLoan = l; $('#flexAmount').value = ''; $('#flexDate').value = ymd(new Date()); $('#flexPaymentInfo').textContent = l.person + ' · Remaining ' + money(remaining); $('#flexPaymentMsg').textContent = ''; $('#overlay').classList.add('open'); $('#flexPaymentSheet').classList.add('open'); };
-      card.append(pay); box.append(card);
+      pay.onclick = () => openFlexPayment(l);
+      card.append(add(h('div', 'btns'), pay, history)); box.append(card);
     });
     loans.filter(l => lf === 'all' || l.kind === lf).forEach((l, i) => {
       const lent = l.kind === 'lent', od = overdue(l), done = closed(l);
@@ -637,11 +634,30 @@
     if (localStorage.getItem('payday-reminders-' + user.id) === 'on') { try { await scheduleReminders(); } catch (e) { console.warn(e); } }
     renderLoans(true);
   };
+  function openFlexPayment(loan, payment = null) {
+    closeSheets(); paymentLoan = loan; editingPayment = payment;
+    $('#flexAmount').value = payment ? payment.amount : ''; $('#flexDate').value = payment ? payment.date : ymd(new Date());
+    $('#flexPaymentSheet h2').textContent = payment ? 'Edit payment' : 'Record payment';
+    $('#flexPaymentInfo').textContent = loan.person + ' · Remaining ' + money(Math.max(0, Number(loan.principal) - flexPaid(loan)));
+    $('#flexPaymentMsg').textContent = ''; $('#overlay').classList.add('open'); $('#flexPaymentSheet').classList.add('open');
+  }
+  function openFlexHistory(loan) {
+    closeSheets(); $('#flexHistoryInfo').textContent = loan.person; const list = $('#flexHistoryList'); list.replaceChildren();
+    const entries = flexPayments.filter(p => p.loan_id === loan.id);
+    if (!entries.length) list.append(h('p', 'empty', 'No payments yet.'));
+    entries.forEach(payment => {
+      const row = h('div', 'payment-row'), details = add(h('div'), h('b', 0, money(Number(payment.amount))), h('p', 'small', payment.date));
+      const edit = h('button', 'act', 'Edit'); edit.disabled = !payment.transaction_id;
+      if (!payment.transaction_id) { edit.title = 'Older payments cannot be edited automatically'; details.append(h('p', 'small', 'Older payment: editing unavailable')); }
+      edit.onclick = () => openFlexPayment(loan, payment); row.append(details, edit); list.append(row);
+    });
+    $('#overlay').classList.add('open'); $('#flexHistorySheet').classList.add('open');
+  }
   $('#flexPaymentSave').onclick = async () => {
     const amount = Number($('#flexAmount').value), date = $('#flexDate').value;
     if (!paymentLoan || !Number.isFinite(amount) || amount <= 0 || !date) return say($('#flexPaymentMsg'), 'Enter a valid amount and date.');
     setBusy($('#flexPaymentSave'), true);
-    const { error } = await sb.rpc('record_flexible_payment', { p_loan: paymentLoan.id, p_amount: amount, p_date: date });
+    const { error } = editingPayment ? await sb.rpc('update_flexible_payment', { p_payment: editingPayment.id, p_amount: amount, p_date: date }) : await sb.rpc('record_flexible_payment', { p_loan: paymentLoan.id, p_amount: amount, p_date: date });
     setBusy($('#flexPaymentSave'), false); if (error) return say($('#flexPaymentMsg'), error.message);
     closeSheets(); const d = new Date(date + 'T00:00:00'); month = new Date(d.getFullYear(), d.getMonth(), 1); await loadAll(false);
   };

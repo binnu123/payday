@@ -223,6 +223,9 @@ body.in-app .fab:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--
 #budgetSheet { max-height:85vh; overflow-y:auto; }
 #splitSheet { max-height:85vh; overflow-y:auto; }
 #loanSheet, #flexPaymentSheet { max-height:85vh; overflow-y:auto; }
+#flexHistorySheet { max-height:85vh; overflow-y:auto; }
+.nav { background:rgba(22,20,16,.97); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px); }
+.payment-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid var(--line); }
 #loanModeSeg { margin-bottom:12px; }
 .split-actions { display:flex; gap:8px; flex-wrap:wrap; }
 .split-person { display:flex; gap:8px; align-items:center; margin:8px 0; }
