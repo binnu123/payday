@@ -18,6 +18,7 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npx cap add android
+      - run: node scripts/configure-android.cjs
       - run: npx cap sync android
       - run: npx capacitor-assets generate --android --iconBackgroundColor '#0B0A08' --iconBackgroundColorDark '#0B0A08' --splashBackgroundColor '#0B0A08' --splashBackgroundColorDark '#0B0A08'
       - run: chmod +x gradlew && ./gradlew assembleDebug
