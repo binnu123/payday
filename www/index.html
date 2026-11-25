@@ -41,7 +41,7 @@
       <span id="monthLabel"></span>
       <button id="next" aria-label="Next month">›</button>
     </div>
-    <button id="logout" class="ghost" aria-label="Log out">Log out</button>
+    <button id="menuOpen" class="ghost" aria-label="Open menu" aria-haspopup="dialog">☰ Menu</button>
   </header>
 
   <div id="home" class="tab on">
@@ -56,6 +56,7 @@
     </div>
     <div class="card safe"><div><div class="label">Safe to spend per day</div><b id="perDay">-</b></div><span class="pill" id="daysLeft"></span></div>
     <div id="budgets"></div>
+    <div id="splits"></div>
     <h2 class="list-title">Entries</h2>
     <div id="list"></div>
   </div>
@@ -73,6 +74,28 @@
 </nav>
 
 <div id="overlay" class="overlay"></div>
+
+<div id="menuSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle" aria-hidden="true">
+  <div class="grab"></div><h2 id="menuTitle">Menu</h2>
+  <button id="menuProfile" class="menu-item">Profile</button>
+  <button id="menuHome" class="menu-item">Home</button>
+  <button id="menuLoans" class="menu-item">Loans and reminders</button>
+  <button id="menuSavings" class="menu-item">Savings</button>
+  <button id="logout" class="menu-item">Log out</button>
+  <button id="menuClose" class="act">Close</button>
+</div>
+
+<div id="profileSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle" aria-hidden="true">
+  <div class="grab"></div><h2 id="profileTitle">Profile</h2>
+  <form id="profileForm">
+    <label>Display name<input id="profileName" type="text" maxlength="80" autocomplete="name" placeholder="Your name"></label>
+    <label>Email<input id="profileEmail" type="email" readonly></label>
+    <p class="small">Your email is used to sign in.</p>
+    <p id="profileMsg" class="msg" role="status"></p>
+    <button id="profileSave" class="primary" type="submit"><span>Save profile</span></button>
+  </form>
+  <button id="profileClose" class="act" type="button">Close</button>
+</div>
 
 <div id="sheet" class="sheet" aria-hidden="true">
   <div class="grab"></div>
@@ -116,6 +139,16 @@
   <p class="small">Set limits for this month. Leave a category blank to remove its limit.</p>
   <div id="budgetFields"></div><p id="budgetMsg" class="msg" role="status"></p>
   <button id="budgetSave" class="primary"><span>Save budgets</span></button>
+</div>
+<div id="splitSheet" class="sheet" aria-hidden="true">
+  <div class="grab"></div><h2>Split an expense</h2>
+  <p class="small">Your share is recorded as an expense. Repayments settle shares without adding income.</p>
+  <label>Description<input id="splitDescription" maxlength="80" placeholder="Dinner"></label>
+  <div class="row2"><label>Category<select id="splitCategory"></select></label><label>Date<input id="splitDate" type="date"></label></div>
+  <label>Your share<input id="splitOwn" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
+  <p class="small">Enter each person's name and amount owed.</p><div id="splitPeople"></div>
+  <button id="splitAddPerson" class="act" type="button">Add person</button>
+  <p id="splitMsg" class="msg" role="status"></p><button id="splitSave" class="primary"><span>Save split</span></button>
 </div>
 <div id="splash"><svg id="logo" viewBox="0 0 120 120" width="136" height="136" aria-label="Payday logo">
 <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE3A3"/><stop offset=".5" stop-color="#F5C26B"/><stop offset="1" stop-color="#B8801F"/></linearGradient><clipPath id="cc"><circle cx="60" cy="60" r="44"/></clipPath></defs>

@@ -41,7 +41,7 @@
 
   let user = null, inApp = false, mode = 'login', type = 'expense', cat = 'Food', lkind = 'lent', lf = 'all', tab = 'home';
   let month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
-  let txs = [], loans = [], budgets = [], budgetErr = '', editingTx = null, editingLoan = null;
+  let txs = [], loans = [], budgets = [], shares = [], splitErr = '', budgetErr = '', editingTx = null, editingLoan = null;
 
   const show = id => $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
   const setBusy = (b, on) => { b.disabled = on; b.classList.toggle('busy', on); };
@@ -67,10 +67,10 @@
     if (res.error) return say($('#authMsg'), res.error.message);
     if (!res.data.session) say($('#authMsg'), 'Account created. Check your email to confirm it, then log in.', true);
   };
-  $('#logout').onclick = () => sb.auth.signOut();
+  $('#logout').onclick = async () => { closeSheets(); await cancelReminders(); await sb.auth.signOut(); };
   sb.auth.onAuthStateChange((_e, session) => setTimeout(() => {
     if (session) { user = session.user; if (!inApp) { inApp = true; enterApp(); } }
-    else { user = null; inApp = false; document.body.classList.remove('in-app'); show('auth'); }
+    else { closeSheets(); user = null; inApp = false; document.body.classList.remove('in-app'); show('auth'); }
   }, 0));
   function enterApp() {
     $('#authForm').reset(); $('#authMsg').textContent = '';
@@ -94,9 +94,16 @@
     const { data, error } = await sb.from('category_budgets').select('*').eq('month', ymd(month));
     budgets = data || []; budgetErr = error ? error.message : '';
   }
+  async function loadShares() {
+    const { data, error } = await sb.from('split_shares').select('*').order('created_at', { ascending: false });
+    shares = data || []; splitErr = error ? error.message : '';
+  }
   let loanErr = '';
   async function loadAll(animate = true) {
-    await Promise.all([loadTx(), loadLoans(), loadBudgets()]);
+    await Promise.all([loadTx(), loadLoans(), loadBudgets(), loadShares()]);
+    if (user && localStorage.getItem('payday-reminders-' + user.id) === 'on') {
+      try { await scheduleReminders(); } catch (e) { console.warn('Could not schedule reminders', e); }
+    }
     renderHome(animate); if (tab === 'loans') renderLoans(false); if (tab === 'save') renderSave(false);
   }
   $('#prev').onclick = () => { month.setMonth(month.getMonth() - 1); loadAll(); };
@@ -161,6 +168,7 @@
     $('#daysLeft').textContent = d ? `for ${d} day${d > 1 ? 's' : ''}` : 'past month';
 
     renderBudgets();
+    renderSplits();
     const list = $('#list'); list.innerHTML = '';
     if (!txs.length) return list.append(h('p', 'empty', 'Nothing logged this month. Tap + to add your salary, then your expenses.'));
     let last = '', i = 0;
@@ -185,6 +193,48 @@
       list.append(row);
     });
   }
+
+  function renderSplits() {
+    const box = $('#splits'); box.replaceChildren();
+    const title = add(h('div', 'budget-title'), h('h2', 'list-title', 'Split expenses'));
+    const create = h('button', 'act', 'New split'); create.onclick = openSplit; title.append(create); box.append(title);
+    if (splitErr) return box.append(h('p', 'empty', 'Could not load splits: ' + splitErr + '. Run the latest supabase.sql.'));
+    if (!shares.length) return box.append(h('p', 'empty', 'Track shared expenses and repayments here.'));
+    const outstanding = shares.filter(s => !s.settled).reduce((sum, s) => sum + Number(s.amount), 0);
+    box.append(h('p', 'small', 'Outstanding: ' + money(outstanding)));
+    shares.forEach(s => {
+      const card = h('div', 'card'), action = h('button', 'act', s.settled ? 'Reopen' : 'Mark settled');
+      action.onclick = async () => {
+        setBusy(action, true);
+        const { error } = await sb.from('split_shares').update({ settled: !s.settled }).eq('id', s.id);
+        if (error) { setBusy(action, false); return alert(error.message); }
+        await loadShares(); renderSplits();
+      };
+      add(card, h('b', 0, s.description), h('p', 'small', s.person + ' · ' + money(Number(s.amount)) + (s.settled ? ' · Settled' : ' · Owes you')), action); box.append(card);
+    });
+  }
+  function addSplitPerson() {
+    const row = h('div', 'split-person'), person = h('input'), amount = h('input'), remove = h('button', 'act', 'Remove');
+    person.placeholder = 'Name'; person.maxLength = 40; person.setAttribute('aria-label', 'Person name');
+    amount.type = 'number'; amount.min = '0.01'; amount.step = '0.01'; amount.placeholder = 'Amount'; amount.setAttribute('aria-label', 'Amount owed');
+    remove.type = 'button'; remove.onclick = () => row.remove(); add(row, person, amount, remove); $('#splitPeople').append(row);
+  }
+  function openSplit() {
+    $('#splitDescription').value = ''; $('#splitOwn').value = ''; $('#splitDate').value = ymd(new Date()); $('#splitMsg').textContent = '';
+    $('#splitPeople').replaceChildren(); addSplitPerson(); $('#splitCategory').replaceChildren();
+    CATS.expense.forEach(([name]) => { const option = h('option', 0, name); option.value = name; $('#splitCategory').append(option); });
+    $('#overlay').classList.add('open'); $('#splitSheet').classList.add('open');
+  }
+  $('#splitAddPerson').onclick = addSplitPerson;
+  $('#splitSave').onclick = async () => {
+    const description = $('#splitDescription').value.trim(), own = Number($('#splitOwn').value), date = $('#splitDate').value;
+    const people = $$('#splitPeople .split-person').map(row => ({ person: row.children[0].value.trim(), amount: Number(row.children[1].value) }));
+    if (!description || !date || !Number.isFinite(own) || own <= 0 || !people.length || people.some(p => !p.person || !Number.isFinite(p.amount) || p.amount <= 0)) return say($('#splitMsg'), 'Enter a description, date, your share, and a positive amount for each person.');
+    setBusy($('#splitSave'), true);
+    const { error } = await sb.rpc('create_split', { p_description: description, p_category: $('#splitCategory').value, p_date: date, p_own: own, p_shares: people });
+    setBusy($('#splitSave'), false); if (error) return say($('#splitMsg'), error.message);
+    closeSheets(); const d = new Date(date + 'T00:00:00'); month = new Date(d.getFullYear(), d.getMonth(), 1); await loadAll(false);
+  };
 
   function renderBudgets() {
     const box = $('#budgets'); box.replaceChildren();
@@ -236,6 +286,38 @@
   }
   const fmtDue = s => new Date(s + 'T00:00:00').toLocaleDateString('en', { day: 'numeric', month: 'short' });
 
+  const notifications = () => window.Capacitor && window.Capacitor.isNativePlatform() && window.Capacitor.Plugins.LocalNotifications;
+  async function cancelReminders() {
+    const plugin = notifications(); if (!plugin) return;
+    try {
+      const pending = await plugin.getPending();
+      const ours = pending.notifications.filter(n => n.extra && n.extra.paydayLoanReminder);
+      if (ours.length) await plugin.cancel({ notifications: ours.map(n => ({ id: n.id })) });
+    } catch (e) { console.warn('Could not cancel reminders', e); }
+  }
+  async function scheduleReminders() {
+    const plugin = notifications(); if (!plugin || loanErr) return;
+    await cancelReminders();
+    const reminders = loans.filter(l => !closed(l)).map(l => {
+      const at = new Date(l.next_due + 'T09:00:00'); at.setDate(at.getDate() - 1);
+      let hash = 0; for (const c of l.id) hash = (Math.imul(hash, 31) + c.charCodeAt(0)) | 0;
+      return { id: (hash & 0x7fffffff) || 1, title: 'EMI due tomorrow', body: (l.kind === 'lent' ? 'Receive from ' : 'Pay ') + l.person + ': ' + money(Number(l.emi)), schedule: { at }, extra: { paydayLoanReminder: true } };
+    }).filter(n => n.schedule.at > new Date());
+    if (reminders.length) await plugin.schedule({ notifications: reminders });
+  }
+  async function toggleReminders(button, status) {
+    const plugin = notifications();
+    if (!plugin) { status.textContent = 'Reminders are available in the Android app.'; return; }
+    if (localStorage.getItem('payday-reminders-' + user.id) === 'on') {
+      localStorage.removeItem('payday-reminders-' + user.id); await cancelReminders(); renderLoans(false); return;
+    }
+    try {
+      const permission = await plugin.requestPermissions();
+      if (permission.display !== 'granted') { status.textContent = 'Allow notifications in your Android settings.'; return; }
+      localStorage.setItem('payday-reminders-' + user.id, 'on'); await scheduleReminders(); renderLoans(false);
+    } catch (e) { localStorage.removeItem('payday-reminders-' + user.id); status.textContent = 'Could not schedule reminders: ' + e.message; }
+  }
+
   async function payEmi(l, btn) {
     setBusy(btn, true);
     const lent = l.kind === 'lent';
@@ -254,6 +336,9 @@
     const box = $('#loanBody'); box.innerHTML = '';
     box.append(h('h2', 'pg', 'Loans'));
     if (loanErr) return box.append(h('p', 'empty', 'Could not load loans: ' + loanErr + '. Run supabase.sql in Supabase.'));
+    const reminderStatus = h('p', 'small', 'Get a reminder at 9 AM one day before an EMI is due.');
+    const reminderButton = h('button', 'act', localStorage.getItem('payday-reminders-' + user.id) === 'on' ? 'Turn off reminders' : 'Enable EMI reminders');
+    reminderButton.onclick = () => toggleReminders(reminderButton, reminderStatus); box.append(reminderStatus, reminderButton);
     const sum = k => loans.filter(l => l.kind === k).reduce((a, l) => a + rem(l), 0);
     const tile = (lbl, cls, v) => { const b = h('b', cls, '0'); countUp(b, v); return add(h('div', 'card'), h('span', 'label', lbl), b); };
     box.append(add(h('div', 'tiles'), tile("You'll receive", 'mint', sum('lent')), tile('You owe', 'coral', sum('borrowed'))));
@@ -281,7 +366,9 @@
         if (!x.classList.contains('sure')) {
           x.classList.add('sure'); x.textContent = 'Sure?'; timer = setTimeout(() => { x.classList.remove('sure'); x.textContent = 'Delete'; }, 2500); return;
         }
-        clearTimeout(timer); await sb.from('loans').delete().eq('id', l.id); await loadLoans(); renderLoans(false);
+        clearTimeout(timer); await sb.from('loans').delete().eq('id', l.id); await loadLoans();
+        if (localStorage.getItem('payday-reminders-' + user.id) === 'on') { try { await scheduleReminders(); } catch (e) { console.warn(e); } }
+        renderLoans(false);
       };
       const edit = h('button', 'act', 'Edit'); edit.onclick = () => openLoan(l);
       card.append(add(h('div', 'btns'), pay, edit, x)); box.append(card);
@@ -346,9 +433,35 @@
   }
 
   /* ---------- sheets ---------- */
-  const closeSheets = () => { $('#overlay').classList.remove('open'); $$('.sheet').forEach(s => s.classList.remove('open')); document.activeElement.blur(); };
+  const closeSheets = () => { $('#overlay').classList.remove('open'); $$('.sheet').forEach(s => { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); }); document.activeElement.blur(); };
   $('#overlay').onclick = closeSheets;
   $('#fab').onclick = () => tab === 'loans' ? openLoan() : openEntry();
+
+  function openMenuSheet(id) {
+    closeSheets(); $('#overlay').classList.add('open'); $(id).classList.add('open'); $(id).setAttribute('aria-hidden', 'false');
+  }
+  $('#menuOpen').onclick = () => openMenuSheet('#menuSheet');
+  $('#menuClose').onclick = closeSheets;
+  $('#profileClose').onclick = closeSheets;
+  $('#menuProfile').onclick = () => {
+    $('#profileName').value = user.user_metadata?.display_name || '';
+    $('#profileEmail').value = user.email || '';
+    $('#profileMsg').textContent = ''; openMenuSheet('#profileSheet'); $('#profileName').focus();
+  };
+  [['#menuHome', 'home'], ['#menuLoans', 'loans'], ['#menuSavings', 'save']].forEach(([selector, target]) => {
+    $(selector).onclick = () => { closeSheets(); switchTab(target); };
+  });
+  $('#profileForm').onsubmit = async e => {
+    e.preventDefault(); const name = $('#profileName').value.trim();
+    if (!name) return say($('#profileMsg'), 'Enter your display name.');
+    setBusy($('#profileSave'), true);
+    try {
+      const { data, error } = await sb.auth.updateUser({ data: { display_name: name } });
+      if (error) return say($('#profileMsg'), error.message);
+      user = data.user; say($('#profileMsg'), 'Profile saved.', true);
+    } catch (error) { say($('#profileMsg'), error.message || 'Could not save your profile.'); }
+    finally { setBusy($('#profileSave'), false); }
+  };
 
   function renderChips() {
     const box = $('#chips'); box.innerHTML = '';
@@ -400,6 +513,8 @@
     const { error } = editingLoan ? await sb.from('loans').update(values).eq('id', editingLoan.id) : await sb.from('loans').insert(values);
     setBusy($('#loanSave'), false);
     if (error) return say(msg, error.message);
-    closeSheets(); await loadLoans(); renderLoans(true);
+    closeSheets(); await loadLoans();
+    if (localStorage.getItem('payday-reminders-' + user.id) === 'on') { try { await scheduleReminders(); } catch (e) { console.warn(e); } }
+    renderLoans(true);
   };
 })();
