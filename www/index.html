@@ -1,176 +1,259 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0B0A08">
-<title>Payday</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0B0A08">
+  <title>Payday</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<div class="blob b1"></div><div class="blob b2"></div>
-<section id="auth" class="screen active">
-  <div class="auth-wrap">
-    <div class="brand"><span class="brand-mark"></span>Payday</div>
-    <h1>See where your salary goes.</h1>
-    <p class="sub">Log your salary, log what you spend, watch what is left.</p>
 
-    <div class="seg" id="authSeg" data-i="0">
-      <i class="seg-ind"></i>
-      <button type="button" data-mode="login" class="on">Log in</button>
-      <button type="button" data-mode="signup">Sign up</button>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <section id="auth" class="screen active">
+    <div class="auth-wrap">
+      <div class="brand"><span class="brand-mark"></span>Payday</div>
+      <h1>See where your salary goes.</h1>
+      <p class="sub">Log your salary, log what you spend, watch what is left.</p>
+
+      <div class="seg" id="authSeg" data-i="0">
+        <i class="seg-ind"></i>
+        <button type="button" data-mode="login" class="on">Log in</button>
+        <button type="button" data-mode="signup">Sign up</button>
+      </div>
+
+      <form id="authForm" novalidate>
+        <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password"
+            placeholder="At least 6 characters"></label>
+        <p id="authMsg" class="msg" role="status"></p>
+        <button id="authBtn" class="primary" type="submit"><span>Log in</span></button>
+      </form>
+    </div>
+  </section>
+
+  <section id="shell" class="screen">
+    <header class="top">
+      <div class="month" id="monthBar">
+        <button id="prev" aria-label="Previous month">‹</button>
+        <span id="monthLabel"></span>
+        <button id="next" aria-label="Next month">›</button>
+      </div>
+      <button id="menuOpen" class="ghost menu-open" aria-label="Open profile menu" aria-haspopup="dialog"><svg
+          viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="8" r="3.5" />
+          <path d="M5 20c0-4 3-6 7-6s7 2 7 6" />
+        </svg></button>
+    </header>
+
+    <div id="home" class="tab on">
+      <div class="hero">
+        <div class="tank" id="tank">
+          <div class="fill" id="fill"></div>
+        </div>
+        <div class="hero-text">
+          <div class="label" id="leftLabel">Left to spend</div>
+          <div class="big" id="leftAmt">0</div>
+          <div class="pair"><span>Income</span><b id="incAmt">0</b></div>
+          <div class="pair"><span>Spent</span><b id="expAmt">0</b></div>
+        </div>
+      </div>
+      <div class="card safe">
+        <div>
+          <div class="label">Safe to spend per day</div><b id="perDay">-</b>
+        </div><span class="pill" id="daysLeft"></span>
+      </div>
+      <h2 class="list-title">Entries</h2>
+      <div id="list"></div>
     </div>
 
-    <form id="authForm" novalidate>
-      <label>Email<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
-      <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="At least 6 characters"></label>
-      <p id="authMsg" class="msg" role="status"></p>
-      <button id="authBtn" class="primary" type="submit"><span>Log in</span></button>
-    </form>
+    <div id="loans" class="tab">
+      <div id="loanBody"></div>
+    </div>
+    <div id="save" class="tab">
+      <div id="saveBody"></div>
+    </div>
+    <div id="splitTab" class="tab">
+      <div id="splits"></div>
+    </div>
+    <div id="budgetTab" class="tab">
+      <div id="budgets"></div>
+    </div>
+  </section>
+
+  <button id="fab" class="fab" aria-label="Add">+</button>
+  <nav class="nav" id="nav">
+    <i></i>
+    <button class="on" data-t="home"><svg viewBox="0 0 24 24">
+        <path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" />
+      </svg>Home</button>
+    <button data-t="loans"><svg viewBox="0 0 24 24">
+        <path d="M7 7h12l-3-3M17 17H5l3 3" />
+      </svg>Loans</button>
+    <button data-t="save"><svg viewBox="0 0 24 24">
+        <path d="M4 18l5-6 4 3 7-9M15 6h5v5" />
+      </svg>Savings</button>
+    <button data-t="splitTab"><svg viewBox="0 0 24 24">
+        <path d="M4 7h15l-3-3M20 17H5l3 3" />
+      </svg>Split</button>
+    <button data-t="budgetTab"><svg viewBox="0 0 24 24">
+        <path d="M4 5h16v14H4zM4 10h16M9 10v9" />
+      </svg>Budgets</button>
+  </nav>
+
+  <div id="overlay" class="overlay"></div>
+
+  <div id="menuSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle" aria-hidden="true">
+    <div class="grab"></div>
+    <div class="menu-heading">
+      <div>
+        <div class="menu-eyebrow">Payday</div>
+        <h2 id="menuTitle">Account</h2>
+      </div><button id="menuClose" class="menu-close" aria-label="Close profile menu">✕</button>
+    </div>
+    <button id="menuProfile" class="menu-item"><span class="menu-icon" aria-hidden="true">◉</span><span
+        class="menu-copy"><b>Profile</b><small>Manage your account details</small></span><span class="menu-arrow"
+        aria-hidden="true">›</span></button>
+    <button id="testNotification" class="menu-item"><span class="menu-icon" aria-hidden="true">♧</span><span
+        class="menu-copy"><b>Test notification</b><small>Send a notification to this device</small></span><span
+        class="menu-arrow" aria-hidden="true">›</span></button>
+    <p id="testNotificationMsg" class="msg" role="status"></p>
+    <button id="logout" class="menu-item menu-logout"><span class="menu-icon" aria-hidden="true">↪</span><span
+        class="menu-copy"><b>Log out</b><small>Sign out of your account</small></span><span class="menu-arrow"
+        aria-hidden="true">›</span></button>
   </div>
-</section>
 
-<section id="shell" class="screen">
-  <header class="top">
-    <div class="month" id="monthBar">
-      <button id="prev" aria-label="Previous month">‹</button>
-      <span id="monthLabel"></span>
-      <button id="next" aria-label="Next month">›</button>
+  <div id="profileSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle"
+    aria-hidden="true">
+    <div class="grab"></div>
+    <h2 id="profileTitle">Profile</h2>
+    <form id="profileForm">
+      <label>Display name<input id="profileName" type="text" maxlength="80" autocomplete="name"
+          placeholder="Your name"></label>
+      <label>Email<input id="profileEmail" type="email" readonly></label>
+      <p class="small">Your email is used to sign in.</p>
+      <p id="profileMsg" class="msg" role="status"></p>
+      <button id="profileSave" class="primary" type="submit"><span>Save profile</span></button>
+    </form>
+    <form id="passwordForm">
+      <h3>Change password</h3>
+      <label>New password<input id="newPassword" type="password" autocomplete="new-password" minlength="6"
+          required></label>
+      <label>Confirm new password<input id="confirmPassword" type="password" autocomplete="new-password" minlength="6"
+          required></label>
+      <p id="passwordMsg" class="msg" role="status"></p>
+      <button id="passwordSave" class="primary" type="submit"><span>Change password</span></button>
+    </form>
+    <button id="profileClose" class="act" type="button">Close</button>
+  </div>
+
+  <div id="sheet" class="sheet" aria-hidden="true">
+    <div class="grab"></div>
+    <div class="seg" id="typeSeg" data-i="0">
+      <i class="seg-ind"></i>
+      <button type="button" data-type="expense" class="on">Expense</button>
+      <button type="button" data-type="income">Salary / income</button>
     </div>
-    <button id="menuOpen" class="ghost menu-open" aria-label="Open profile menu" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6"/></svg></button>
-  </header>
+    <div class="amount-row"><span id="curSym"></span><input id="amount" inputmode="decimal" placeholder="0"
+        autocomplete="off"></div>
+    <div id="chips" class="chips"></div>
+    <div class="row2">
+      <label>Date<input id="date" type="date"></label>
+      <label>Note<input id="note" type="text" maxlength="80" placeholder="Optional"></label>
+    </div>
+    <p id="sheetMsg" class="msg" role="status"></p>
+    <button id="saveBtn" class="primary"><span>Save entry</span></button>
+  </div>
 
-  <div id="home" class="tab on">
-    <div class="hero">
-      <div class="tank" id="tank"><div class="fill" id="fill"></div></div>
-      <div class="hero-text">
-        <div class="label" id="leftLabel">Left to spend</div>
-        <div class="big" id="leftAmt">0</div>
-        <div class="pair"><span>Income</span><b id="incAmt">0</b></div>
-        <div class="pair"><span>Spent</span><b id="expAmt">0</b></div>
+  <div id="loanSheet" class="sheet" aria-hidden="true">
+    <div class="grab"></div>
+    <div class="seg" id="loanModeSeg" data-i="0"><i class="seg-ind"></i><button type="button" data-mode="emi"
+        class="on">Fixed EMI</button><button type="button" data-mode="flexible">Flexible</button></div>
+    <div class="seg" id="loanSeg" data-i="0">
+      <i class="seg-ind"></i>
+      <button type="button" data-k="lent" class="on">I lent</button>
+      <button type="button" data-k="borrowed">I borrowed</button>
+    </div>
+    <label class="fl">Person or lender<input id="lPerson" type="text" maxlength="40"
+        placeholder="e.g. Ravi, HDFC"></label>
+    <div id="flexLoanFields" hidden><label class="fl">Total loan amount<input id="lPrincipal" type="number" min="0.01"
+          step="0.01" inputmode="decimal"></label></div>
+    <div id="emiLoanFields">
+      <div class="row2">
+        <label>EMI amount<input id="lEmi" inputmode="decimal" placeholder="5000"></label>
+        <label>Total EMIs<input id="lTotal" inputmode="numeric" placeholder="12"></label>
+      </div>
+      <div class="row2">
+        <label>EMIs already paid<input id="lPaid" inputmode="numeric" placeholder="0"></label>
+        <label>Next due date<input id="lDue" type="date"></label>
       </div>
     </div>
-    <div class="card safe"><div><div class="label">Safe to spend per day</div><b id="perDay">-</b></div><span class="pill" id="daysLeft"></span></div>
-    <h2 class="list-title">Entries</h2>
-    <div id="list"></div>
+    <p id="loanMsg" class="msg" role="status"></p>
+    <button id="loanSave" class="primary"><span>Save loan</span></button>
+  </div>
+  <div id="flexPaymentSheet" class="sheet" aria-hidden="true">
+    <div class="grab"></div>
+    <h2>Record payment</h2>
+    <p id="flexPaymentInfo" class="small"></p>
+    <label>Amount<input id="flexAmount" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
+    <label>Date<input id="flexDate" type="date"></label>
+    <p id="flexPaymentMsg" class="msg" role="status"></p><button id="flexPaymentSave" class="primary">Save
+      payment</button>
   </div>
 
-  <div id="loans" class="tab"><div id="loanBody"></div></div>
-  <div id="save" class="tab"><div id="saveBody"></div></div>
-  <div id="splitTab" class="tab"><div id="splits"></div></div>
-  <div id="budgetTab" class="tab"><div id="budgets"></div></div>
-</section>
-
-<button id="fab" class="fab" aria-label="Add">+</button>
-<nav class="nav" id="nav">
-  <i></i>
-  <button class="on" data-t="home"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Home</button>
-  <button data-t="loans"><svg viewBox="0 0 24 24"><path d="M7 7h12l-3-3M17 17H5l3 3"/></svg>Loans</button>
-  <button data-t="save"><svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9M15 6h5v5"/></svg>Savings</button>
-  <button data-t="splitTab"><svg viewBox="0 0 24 24"><path d="M4 7h15l-3-3M20 17H5l3 3"/></svg>Split</button>
-  <button data-t="budgetTab"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h16M9 10v9"/></svg>Budgets</button>
-</nav>
-
-<div id="overlay" class="overlay"></div>
-
-<div id="menuSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle" aria-hidden="true">
-  <div class="grab"></div>
-  <div class="menu-heading"><div><div class="menu-eyebrow">Payday</div><h2 id="menuTitle">Account</h2></div><button id="menuClose" class="menu-close" aria-label="Close profile menu">✕</button></div>
-  <button id="menuProfile" class="menu-item"><span class="menu-icon" aria-hidden="true">◉</span><span class="menu-copy"><b>Profile</b><small>Manage your account details</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
-  <button id="testNotification" class="menu-item"><span class="menu-icon" aria-hidden="true">♧</span><span class="menu-copy"><b>Test notification</b><small>Send a notification to this device</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
-  <p id="testNotificationMsg" class="msg" role="status"></p>
-  <button id="logout" class="menu-item menu-logout"><span class="menu-icon" aria-hidden="true">↪</span><span class="menu-copy"><b>Log out</b><small>Sign out of your account</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
-</div>
-
-<div id="profileSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle" aria-hidden="true">
-  <div class="grab"></div><h2 id="profileTitle">Profile</h2>
-  <form id="profileForm">
-    <label>Display name<input id="profileName" type="text" maxlength="80" autocomplete="name" placeholder="Your name"></label>
-    <label>Email<input id="profileEmail" type="email" readonly></label>
-    <p class="small">Your email is used to sign in.</p>
-    <p id="profileMsg" class="msg" role="status"></p>
-    <button id="profileSave" class="primary" type="submit"><span>Save profile</span></button>
-  </form>
-  <form id="passwordForm">
-    <h3>Change password</h3>
-    <label>New password<input id="newPassword" type="password" autocomplete="new-password" minlength="6" required></label>
-    <label>Confirm new password<input id="confirmPassword" type="password" autocomplete="new-password" minlength="6" required></label>
-    <p id="passwordMsg" class="msg" role="status"></p>
-    <button id="passwordSave" class="primary" type="submit"><span>Change password</span></button>
-  </form>
-  <button id="profileClose" class="act" type="button">Close</button>
-</div>
-
-<div id="sheet" class="sheet" aria-hidden="true">
-  <div class="grab"></div>
-  <div class="seg" id="typeSeg" data-i="0">
-    <i class="seg-ind"></i>
-    <button type="button" data-type="expense" class="on">Expense</button>
-    <button type="button" data-type="income">Salary / income</button>
+  <div id="budgetSheet" class="sheet" aria-hidden="true">
+    <div class="grab"></div>
+    <h2>Category budgets</h2>
+    <p class="small" id="budgetMonth"></p>
+    <p class="small">Set limits for this month. Leave a category blank to remove its limit.</p>
+    <div id="budgetFields"></div>
+    <p id="budgetMsg" class="msg" role="status"></p>
+    <button id="budgetSave" class="primary"><span>Save budgets</span></button>
   </div>
-  <div class="amount-row"><span id="curSym"></span><input id="amount" inputmode="decimal" placeholder="0" autocomplete="off"></div>
-  <div id="chips" class="chips"></div>
-  <div class="row2">
-    <label>Date<input id="date" type="date"></label>
-    <label>Note<input id="note" type="text" maxlength="80" placeholder="Optional"></label>
+  <div id="splitSheet" class="sheet" aria-hidden="true">
+    <div class="grab"></div>
+    <h2>New split</h2>
+    <label>Title<input id="splitDescription" maxlength="80" placeholder="e.g. Weekend trip"></label>
+    <p class="small">Add everyone taking part and how much each person paid. Enter 0 if they paid nothing.</p>
+    <div id="splitPeople"></div>
+    <button id="splitAddPerson" class="act" type="button">Add person</button>
+    <p id="splitMsg" class="msg" role="status"></p><button id="splitSave" class="primary"><span>Save
+        split</span></button>
   </div>
-  <p id="sheetMsg" class="msg" role="status"></p>
-  <button id="saveBtn" class="primary"><span>Save entry</span></button>
-</div>
-
-<div id="loanSheet" class="sheet" aria-hidden="true">
-  <div class="grab"></div>
-  <div class="seg" id="loanModeSeg" data-i="0"><i class="seg-ind"></i><button type="button" data-mode="emi" class="on">Fixed EMI</button><button type="button" data-mode="flexible">Flexible</button></div>
-  <div class="seg" id="loanSeg" data-i="0">
-    <i class="seg-ind"></i>
-    <button type="button" data-k="lent" class="on">I lent</button>
-    <button type="button" data-k="borrowed">I borrowed</button>
+  <div id="splash"><svg id="logo" viewBox="0 0 120 120" width="136" height="136" aria-label="Payday logo">
+      <defs>
+        <linearGradient id="gg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#FFE3A3" />
+          <stop offset=".5" stop-color="#F5C26B" />
+          <stop offset="1" stop-color="#B8801F" />
+        </linearGradient>
+        <clipPath id="cc">
+          <circle cx="60" cy="60" r="44" />
+        </clipPath>
+      </defs>
+      <circle class="ring" cx="60" cy="60" r="52" />
+      <g clip-path="url(#cc)">
+        <g class="liq">
+          <path class="wv" d="M-60 0 Q-40 -9 -20 0 T20 0 T60 0 T100 0 T140 0 T180 0 V130 H-60Z" fill="url(#gg)" />
+        </g>
+        <rect class="shn" x="-70" y="0" width="26" height="120" fill="rgba(255,255,255,.4)" />
+      </g>
+      <text class="rs" x="60" y="78" text-anchor="middle">₹</text>
+    </svg>
+    <div class="wm"><span style="--i:0">P</span><span style="--i:1">A</span><span style="--i:2">Y</span><span
+        style="--i:3">D</span><span style="--i:4">A</span><span style="--i:5">Y</span></div>
+    <p class="tg">Know where your salary goes</p>
   </div>
-  <label class="fl">Person or lender<input id="lPerson" type="text" maxlength="40" placeholder="e.g. Ravi, HDFC"></label>
-  <div id="flexLoanFields" hidden><label class="fl">Total loan amount<input id="lPrincipal" type="number" min="0.01" step="0.01" inputmode="decimal"></label></div>
-  <div id="emiLoanFields"><div class="row2">
-    <label>EMI amount<input id="lEmi" inputmode="decimal" placeholder="5000"></label>
-    <label>Total EMIs<input id="lTotal" inputmode="numeric" placeholder="12"></label>
-  </div>
-  <div class="row2">
-    <label>EMIs already paid<input id="lPaid" inputmode="numeric" placeholder="0"></label>
-    <label>Next due date<input id="lDue" type="date"></label>
-  </div>
-  </div><p id="loanMsg" class="msg" role="status"></p>
-  <button id="loanSave" class="primary"><span>Save loan</span></button>
-</div>
-<div id="flexPaymentSheet" class="sheet" aria-hidden="true">
-  <div class="grab"></div><h2>Record payment</h2><p id="flexPaymentInfo" class="small"></p>
-  <label>Amount<input id="flexAmount" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
-  <label>Date<input id="flexDate" type="date"></label>
-  <p id="flexPaymentMsg" class="msg" role="status"></p><button id="flexPaymentSave" class="primary">Save payment</button>
-</div>
-
-<div id="budgetSheet" class="sheet" aria-hidden="true">
-  <div class="grab"></div><h2>Category budgets</h2><p class="small" id="budgetMonth"></p>
-  <p class="small">Set limits for this month. Leave a category blank to remove its limit.</p>
-  <div id="budgetFields"></div><p id="budgetMsg" class="msg" role="status"></p>
-  <button id="budgetSave" class="primary"><span>Save budgets</span></button>
-</div>
-<div id="splitSheet" class="sheet" aria-hidden="true">
-  <div class="grab"></div><h2>New split</h2>
-  <label>Title<input id="splitDescription" maxlength="80" placeholder="e.g. Weekend trip"></label>
-  <p class="small">Add everyone taking part and how much each person paid. Enter 0 if they paid nothing.</p><div id="splitPeople"></div>
-  <button id="splitAddPerson" class="act" type="button">Add person</button>
-  <p id="splitMsg" class="msg" role="status"></p><button id="splitSave" class="primary"><span>Save split</span></button>
-</div>
-<div id="splash"><svg id="logo" viewBox="0 0 120 120" width="136" height="136" aria-label="Payday logo">
-<defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE3A3"/><stop offset=".5" stop-color="#F5C26B"/><stop offset="1" stop-color="#B8801F"/></linearGradient><clipPath id="cc"><circle cx="60" cy="60" r="44"/></clipPath></defs>
-<circle class="ring" cx="60" cy="60" r="52"/>
-<g clip-path="url(#cc)"><g class="liq"><path class="wv" d="M-60 0 Q-40 -9 -20 0 T20 0 T60 0 T100 0 T140 0 T180 0 V130 H-60Z" fill="url(#gg)"/></g><rect class="shn" x="-70" y="0" width="26" height="120" fill="rgba(255,255,255,.4)"/></g>
-<text class="rs" x="60" y="78" text-anchor="middle">₹</text></svg>
-<div class="wm"><span style="--i:0">P</span><span style="--i:1">A</span><span style="--i:2">Y</span><span style="--i:3">D</span><span style="--i:4">A</span><span style="--i:5">Y</span></div><p class="tg">Know where your salary goes</p></div>
-<script src="config.js"></script>
-<script src="vendor/supabase.js"></script>
-<script src="app.js"></script>
+  <script src="config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="app.js"></script>
 </body>
+
 </html>
