@@ -76,6 +76,20 @@ end $$;
 
 create index if not exists loans_user_created on public.loans (user_id, created_at desc);
 
+create table if not exists public.split_groups (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  title text not null check (length(trim(title)) between 1 and 80),
+  payments jsonb not null check (jsonb_typeof(payments) = 'array'),
+  created_at timestamptz not null default now()
+);
+alter table public.split_groups enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'split_groups' and policyname = 'own rows') then
+    create policy "own rows" on public.split_groups for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  end if;
+end $$;
+
 create table if not exists public.category_budgets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,

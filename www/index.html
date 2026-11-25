@@ -41,7 +41,7 @@
       <span id="monthLabel"></span>
       <button id="next" aria-label="Next month">›</button>
     </div>
-    <button id="menuOpen" class="ghost menu-open" aria-label="Open menu" aria-haspopup="dialog">☰ &nbsp;Menu</button>
+    <button id="menuOpen" class="ghost menu-open" aria-label="Open profile menu" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6"/></svg></button>
   </header>
 
   <div id="home" class="tab on">
@@ -79,8 +79,10 @@
 
 <div id="menuSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="menuTitle" aria-hidden="true">
   <div class="grab"></div>
-  <div class="menu-heading"><div><div class="menu-eyebrow">Payday</div><h2 id="menuTitle">Your menu</h2></div><button id="menuClose" class="menu-close" aria-label="Close menu">✕</button></div>
+  <div class="menu-heading"><div><div class="menu-eyebrow">Payday</div><h2 id="menuTitle">Account</h2></div><button id="menuClose" class="menu-close" aria-label="Close profile menu">✕</button></div>
   <button id="menuProfile" class="menu-item"><span class="menu-icon" aria-hidden="true">◉</span><span class="menu-copy"><b>Profile</b><small>Manage your account details</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
+  <button id="testNotification" class="menu-item"><span class="menu-icon" aria-hidden="true">♧</span><span class="menu-copy"><b>Test notification</b><small>Send a notification to this device</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
+  <p id="testNotificationMsg" class="msg" role="status"></p>
   <button id="logout" class="menu-item menu-logout"><span class="menu-icon" aria-hidden="true">↪</span><span class="menu-copy"><b>Log out</b><small>Sign out of your account</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
 </div>
 
@@ -140,12 +142,9 @@
   <button id="budgetSave" class="primary"><span>Save budgets</span></button>
 </div>
 <div id="splitSheet" class="sheet" aria-hidden="true">
-  <div class="grab"></div><h2>Split an expense</h2>
-  <p class="small">Your share is recorded as an expense. Repayments settle shares without adding income.</p>
-  <label>Description<input id="splitDescription" maxlength="80" placeholder="Dinner"></label>
-  <div class="row2"><label>Category<select id="splitCategory"></select></label><label>Date<input id="splitDate" type="date"></label></div>
-  <label>Your share<input id="splitOwn" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
-  <p class="small">Enter each person's name and amount owed.</p><div id="splitPeople"></div>
+  <div class="grab"></div><h2>New split</h2>
+  <label>Title<input id="splitDescription" maxlength="80" placeholder="e.g. Weekend trip"></label>
+  <p class="small">Add everyone taking part and how much each person paid. Enter 0 if they paid nothing.</p><div id="splitPeople"></div>
   <button id="splitAddPerson" class="act" type="button">Add person</button>
   <p id="splitMsg" class="msg" role="status"></p><button id="splitSave" class="primary"><span>Save split</span></button>
 </div>

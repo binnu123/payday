@@ -41,7 +41,7 @@
 
   let user = null, inApp = false, mode = 'login', type = 'expense', cat = 'Food', lkind = 'lent', lf = 'all', tab = 'home';
   let month = new Date(); month.setDate(1); month.setHours(0, 0, 0, 0);
-  let txs = [], loans = [], budgets = [], shares = [], splitErr = '', budgetErr = '', editingTx = null, editingLoan = null;
+  let txs = [], loans = [], budgets = [], shares = [], splitGroups = [], splitErr = '', groupErr = '', budgetErr = '', editingTx = null, editingLoan = null;
 
   const show = id => $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
   const setBusy = (b, on) => { b.disabled = on; b.classList.toggle('busy', on); };
@@ -95,8 +95,9 @@
     budgets = data || []; budgetErr = error ? error.message : '';
   }
   async function loadShares() {
-    const { data, error } = await sb.from('split_shares').select('*').order('created_at', { ascending: false });
-    shares = data || []; splitErr = error ? error.message : '';
+    const [old, groups] = await Promise.all([sb.from('split_shares').select('*').order('created_at', { ascending: false }), sb.from('split_groups').select('*').order('created_at', { ascending: false })]);
+    shares = old.data || []; splitErr = old.error ? old.error.message : '';
+    splitGroups = groups.data || []; groupErr = groups.error ? groups.error.message : '';
   }
   let loanErr = '';
   async function loadAll(animate = true) {
@@ -196,10 +197,31 @@
 
   function renderSplits() {
     const box = $('#splits'); box.replaceChildren();
-    const title = add(h('div', 'budget-title'), h('h2', 'list-title', 'Split expenses'));
-    const create = h('button', 'act', 'New split'); create.onclick = openSplit; title.append(create); box.append(title);
+    box.append(h('h2', 'pg', 'Split expenses'));
+    if (groupErr) box.append(h('p', 'empty', 'Could not load group splits: ' + groupErr + '. Run the latest supabase.sql.'));
+    splitGroups.forEach(group => {
+      const card = h('div', 'card split-card'), people = group.payments;
+      const total = people.reduce((sum, p) => sum + p.cents, 0), base = Math.floor(total / people.length), extra = total % people.length;
+      const balances = people.map((p, i) => ({ name: p.name, cents: p.cents - base - (i < extra ? 1 : 0) }));
+      add(card, h('h3', 0, group.title), h('p', 'small', 'Total ' + money(total / 100) + ' · Split equally between ' + people.length));
+      people.forEach(p => card.append(h('p', 'split-line', p.name + ' paid ' + money(p.cents / 100))));
+      const debtors = balances.filter(p => p.cents < 0), creditors = balances.filter(p => p.cents > 0);
+      if (!debtors.length) card.append(h('p', 'small', 'Everyone is even.'));
+      debtors.forEach(debtor => creditors.forEach(creditor => {
+        const amount = Math.min(-debtor.cents, creditor.cents);
+        if (amount > 0) { card.append(h('p', 'split-settlement', debtor.name + ' pays ' + creditor.name + ' ' + money(amount / 100))); debtor.cents += amount; creditor.cents -= amount; }
+      }));
+      const del = h('button', 'act', 'Delete'); let confirmDelete = false;
+      del.onclick = async () => {
+        if (!confirmDelete) { confirmDelete = true; del.textContent = 'Confirm delete'; setTimeout(() => { confirmDelete = false; del.textContent = 'Delete'; }, 3000); return; }
+        setBusy(del, true); const { error } = await sb.from('split_groups').delete().eq('id', group.id);
+        if (error) { setBusy(del, false); return alert(error.message); } await loadShares(); renderSplits();
+      };
+      card.append(del); box.append(card);
+    });
     if (splitErr) return box.append(h('p', 'empty', 'Could not load splits: ' + splitErr + '. Run the latest supabase.sql.'));
-    if (!shares.length) return box.append(h('p', 'empty', 'Track shared expenses and repayments here.'));
+    if (!shares.length) { if (!splitGroups.length && !groupErr) box.append(h('p', 'empty', 'Tap + to create a split and see who owes whom.')); return; }
+    box.append(h('h3', 'list-title', 'Previous shared expenses'));
     const outstanding = shares.filter(s => !s.settled).reduce((sum, s) => sum + Number(s.amount), 0);
     box.append(h('p', 'small', 'Outstanding: ' + money(outstanding)));
     shares.forEach(s => {
@@ -216,32 +238,31 @@
   function addSplitPerson() {
     const row = h('div', 'split-person'), person = h('input'), amount = h('input'), remove = h('button', 'act', 'Remove');
     person.placeholder = 'Name'; person.maxLength = 40; person.setAttribute('aria-label', 'Person name');
-    amount.type = 'number'; amount.min = '0.01'; amount.step = '0.01'; amount.placeholder = 'Amount'; amount.setAttribute('aria-label', 'Amount owed');
+    amount.type = 'number'; amount.min = '0'; amount.step = '0.01'; amount.placeholder = 'Paid'; amount.setAttribute('aria-label', 'Amount paid');
     remove.type = 'button'; remove.onclick = () => row.remove(); add(row, person, amount, remove); $('#splitPeople').append(row);
   }
   function openSplit() {
-    $('#splitDescription').value = ''; $('#splitOwn').value = ''; $('#splitDate').value = ymd(new Date()); $('#splitMsg').textContent = '';
-    $('#splitPeople').replaceChildren(); addSplitPerson(); $('#splitCategory').replaceChildren();
-    CATS.expense.forEach(([name]) => { const option = h('option', 0, name); option.value = name; $('#splitCategory').append(option); });
+    $('#splitDescription').value = ''; $('#splitMsg').textContent = '';
+    $('#splitPeople').replaceChildren(); addSplitPerson(); addSplitPerson();
     $('#overlay').classList.add('open'); $('#splitSheet').classList.add('open');
   }
   $('#splitAddPerson').onclick = addSplitPerson;
   $('#splitSave').onclick = async () => {
-    const description = $('#splitDescription').value.trim(), own = Number($('#splitOwn').value), date = $('#splitDate').value;
-    const people = $$('#splitPeople .split-person').map(row => ({ person: row.children[0].value.trim(), amount: Number(row.children[1].value) }));
-    if (!description || !date || !Number.isFinite(own) || own <= 0 || !people.length || people.some(p => !p.person || !Number.isFinite(p.amount) || p.amount <= 0)) return say($('#splitMsg'), 'Enter a description, date, your share, and a positive amount for each person.');
+    const description = $('#splitDescription').value.trim();
+    const people = $$('#splitPeople .split-person').map(row => ({ name: row.children[0].value.trim(), raw: row.children[1].value }));
+    if (!description || people.length < 2 || people.some(p => !p.name || !/^\d+(\.\d{1,2})?$/.test(p.raw) || !Number.isSafeInteger(Math.round(Number(p.raw) * 100))) || new Set(people.map(p => p.name.toLowerCase())).size !== people.length || people.every(p => Number(p.raw) === 0)) return say($('#splitMsg'), 'Enter a title, at least two different names, and valid amounts paid (use 0 if needed).');
     setBusy($('#splitSave'), true);
-    const { error } = await sb.rpc('create_split', { p_description: description, p_category: $('#splitCategory').value, p_date: date, p_own: own, p_shares: people });
+    const { error } = await sb.from('split_groups').insert({ title: description, payments: people.map(p => ({ name: p.name, cents: Math.round(Number(p.raw) * 100) })) });
     setBusy($('#splitSave'), false); if (error) return say($('#splitMsg'), error.message);
-    closeSheets(); const d = new Date(date + 'T00:00:00'); month = new Date(d.getFullYear(), d.getMonth(), 1); await loadAll(false);
+    closeSheets(); await loadShares(); renderSplits();
   };
 
   function renderBudgets() {
     const box = $('#budgets'); box.replaceChildren();
     const title = add(h('div', 'budget-title'), h('h2', 'list-title', 'Category budgets'));
-    const manage = h('button', 'act', 'Set budgets'); manage.onclick = openBudgets; title.append(manage); box.append(title);
+    box.append(title);
     if (budgetErr) return box.append(h('p', 'empty', 'Could not load budgets: ' + budgetErr + '. Run the latest supabase.sql.'));
-    if (!budgets.length) return box.append(h('p', 'empty', 'Set a monthly limit for your expense categories.'));
+    if (!budgets.length) return box.append(h('p', 'empty', 'Tap + to set monthly limits for your expense categories.'));
     const card = h('div', 'card');
     budgets.forEach(b => {
       const spent = txs.filter(t => t.type === 'expense' && t.category === b.category).reduce((sum, t) => sum + Number(t.amount), 0);
@@ -441,6 +462,18 @@
     closeSheets(); $('#overlay').classList.add('open'); $(id).classList.add('open'); $(id).setAttribute('aria-hidden', 'false');
   }
   $('#menuOpen').onclick = () => openMenuSheet('#menuSheet');
+  $('#testNotification').onclick = async () => {
+    const button = $('#testNotification'), msg = $('#testNotificationMsg'), plugin = notifications();
+    if (!plugin) return say(msg, 'Test notifications are available in the installed Android app.');
+    setBusy(button, true);
+    try {
+      const permission = await plugin.requestPermissions();
+      if (permission.display !== 'granted') return say(msg, 'Allow notifications in your Android settings.');
+      await plugin.schedule({ notifications: [{ id: 2147483646, title: 'Payday test notification', body: 'Notifications are working on this device.', schedule: { at: new Date(Date.now() + 3000) } }] });
+      say(msg, 'Test scheduled. Check your notification shade in a few seconds.', true);
+    } catch (error) { say(msg, error.message || 'Could not send the test notification.'); }
+    finally { setBusy(button, false); }
+  };
   $('#menuClose').onclick = closeSheets;
   $('#profileClose').onclick = closeSheets;
   $('#menuProfile').onclick = () => {

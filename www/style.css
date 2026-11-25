@@ -225,10 +225,19 @@ body.in-app .fab:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--
 .split-actions { display:flex; gap:8px; flex-wrap:wrap; }
 .split-person { display:flex; gap:8px; align-items:center; margin:8px 0; }
 .split-person input { min-width:0; width:40%; }
+.split-card { animation:pop .35s var(--ease); }
+.split-card h3 { margin:0 0 8px; }
+.split-line { color:var(--muted); margin:8px 0; }
+.split-settlement { padding:12px; border-radius:12px; background:var(--surface2); color:var(--gold); line-height:1.4; }
+.split-card .act { margin-top:8px; }
+.card, .act, .chip, .nav button { transition:transform .25s var(--ease), background .25s, color .25s, opacity .25s; }
+.act:active, .chip:active { transform:scale(.97); }
+@media (prefers-reduced-motion:reduce) { .split-card { animation:none; } .card, .act, .chip, .nav button { transition:none; } }
 .nav { grid-template-columns:repeat(5,1fr); }
 .nav i { width:calc((100% - 12px)/5); }
 .nav button { font-size:9px; letter-spacing:0; }
 .menu-open { background:var(--surface); border:1px solid var(--line); border-radius:14px; color:var(--gold); padding:11px 15px; transition:background .2s, transform .2s; }
+.menu-open svg { display:block; width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .menu-open:active { transform:scale(.97); }
 #menuSheet { max-height:85vh; overflow-y:auto; background:var(--surface); border:1px solid var(--line); }
 .menu-heading { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
