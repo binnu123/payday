@@ -55,14 +55,14 @@
       </div>
     </div>
     <div class="card safe"><div><div class="label">Safe to spend per day</div><b id="perDay">-</b></div><span class="pill" id="daysLeft"></span></div>
-    <div id="budgets"></div>
-    <div id="splits"></div>
     <h2 class="list-title">Entries</h2>
     <div id="list"></div>
   </div>
 
   <div id="loans" class="tab"><div id="loanBody"></div></div>
   <div id="save" class="tab"><div id="saveBody"></div></div>
+  <div id="splitTab" class="tab"><div id="splits"></div></div>
+  <div id="budgetTab" class="tab"><div id="budgets"></div></div>
 </section>
 
 <button id="fab" class="fab" aria-label="Add">+</button>
@@ -71,6 +71,8 @@
   <button class="on" data-t="home"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Home</button>
   <button data-t="loans"><svg viewBox="0 0 24 24"><path d="M7 7h12l-3-3M17 17H5l3 3"/></svg>Loans</button>
   <button data-t="save"><svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9M15 6h5v5"/></svg>Savings</button>
+  <button data-t="splitTab"><svg viewBox="0 0 24 24"><path d="M4 7h15l-3-3M20 17H5l3 3"/></svg>Split</button>
+  <button data-t="budgetTab"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 10h16M9 10v9"/></svg>Budgets</button>
 </nav>
 
 <div id="overlay" class="overlay"></div>
@@ -79,8 +81,6 @@
   <div class="grab"></div>
   <div class="menu-heading"><div><div class="menu-eyebrow">Payday</div><h2 id="menuTitle">Your menu</h2></div><button id="menuClose" class="menu-close" aria-label="Close menu">✕</button></div>
   <button id="menuProfile" class="menu-item"><span class="menu-icon" aria-hidden="true">◉</span><span class="menu-copy"><b>Profile</b><small>Manage your account details</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
-  <button id="menuSplits" class="menu-item"><span class="menu-icon" aria-hidden="true">⇄</span><span class="menu-copy"><b>Split expenses</b><small>Track shared bills and repayments</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
-  <button id="menuBudgets" class="menu-item"><span class="menu-icon" aria-hidden="true">◫</span><span class="menu-copy"><b>Category budgets</b><small>Set and manage monthly limits</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
   <button id="logout" class="menu-item menu-logout"><span class="menu-icon" aria-hidden="true">↪</span><span class="menu-copy"><b>Log out</b><small>Sign out of your account</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
 </div>
 

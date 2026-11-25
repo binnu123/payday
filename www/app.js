@@ -112,11 +112,11 @@
   /* ---------- tabs ---------- */
   function switchTab(t) {
     tab = t;
-    const names = ['home', 'loans', 'save'];
+    const names = ['home', 'loans', 'save', 'splitTab', 'budgetTab'];
     $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
     $('#nav i').style.transform = `translateX(${names.indexOf(t) * 100}%)`;
     $$('.tab').forEach(x => x.classList.toggle('on', x.id === t));
-    $('#monthBar').style.visibility = t === 'loans' ? 'hidden' : 'visible';
+    $('#monthBar').style.visibility = t === 'loans' || t === 'splitTab' ? 'hidden' : 'visible';
     $('.screen.active')?.scrollTo(0, 0);
     if (t === 'home') renderHome(true); if (t === 'loans') renderLoans(true); if (t === 'save') renderSave(true);
   }
@@ -435,7 +435,7 @@
   /* ---------- sheets ---------- */
   const closeSheets = () => { $('#overlay').classList.remove('open'); $$('.sheet').forEach(s => { s.classList.remove('open'); s.setAttribute('aria-hidden', 'true'); }); document.activeElement.blur(); };
   $('#overlay').onclick = closeSheets;
-  $('#fab').onclick = () => tab === 'loans' ? openLoan() : openEntry();
+  $('#fab').onclick = () => tab === 'loans' ? openLoan() : tab === 'splitTab' ? openSplit() : tab === 'budgetTab' ? openBudgets() : openEntry();
 
   function openMenuSheet(id) {
     closeSheets(); $('#overlay').classList.add('open'); $(id).classList.add('open'); $(id).setAttribute('aria-hidden', 'false');
@@ -448,8 +448,6 @@
     $('#profileEmail').value = user.email || '';
     $('#profileMsg').textContent = ''; openMenuSheet('#profileSheet'); $('#profileName').focus();
   };
-  $('#menuSplits').onclick = () => { closeSheets(); switchTab('home'); $('#splits').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-  $('#menuBudgets').onclick = () => { closeSheets(); switchTab('home'); $('#budgets').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('#profileForm').onsubmit = async e => {
     e.preventDefault(); const name = $('#profileName').value.trim();
     if (!name) return say($('#profileMsg'), 'Enter your display name.');
