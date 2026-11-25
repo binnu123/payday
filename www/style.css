@@ -217,3 +217,7 @@ body.in-app .fab:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--
 @keyframes wup{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 .tg{margin:0;color:#9A917D;font-size:11px;letter-spacing:2.4px;text-transform:uppercase;opacity:0;animation:fadein .8s 2.15s forwards}
 @keyframes fadein{to{opacity:1}}
+.budget-title { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.budget-field { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:10px 0; }
+.budget-field input { width:48%; }
+#budgetSheet { max-height:85vh; overflow-y:auto; }

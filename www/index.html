@@ -55,6 +55,7 @@
       </div>
     </div>
     <div class="card safe"><div><div class="label">Safe to spend per day</div><b id="perDay">-</b></div><span class="pill" id="daysLeft"></span></div>
+    <div id="budgets"></div>
     <h2 class="list-title">Entries</h2>
     <div id="list"></div>
   </div>
@@ -110,6 +111,12 @@
   <button id="loanSave" class="primary"><span>Save loan</span></button>
 </div>
 
+<div id="budgetSheet" class="sheet" aria-hidden="true">
+  <div class="grab"></div><h2>Category budgets</h2><p class="small" id="budgetMonth"></p>
+  <p class="small">Set limits for this month. Leave a category blank to remove its limit.</p>
+  <div id="budgetFields"></div><p id="budgetMsg" class="msg" role="status"></p>
+  <button id="budgetSave" class="primary"><span>Save budgets</span></button>
+</div>
 <div id="splash"><svg id="logo" viewBox="0 0 120 120" width="136" height="136" aria-label="Payday logo">
 <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFE3A3"/><stop offset=".5" stop-color="#F5C26B"/><stop offset="1" stop-color="#B8801F"/></linearGradient><clipPath id="cc"><circle cx="60" cy="60" r="44"/></clipPath></defs>
 <circle class="ring" cx="60" cy="60" r="52"/>
