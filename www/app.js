@@ -176,13 +176,15 @@
     txs.forEach(t => {
       if (t.date !== last) { last = t.date; list.append(h('div', 'day', dayLabel(t.date))); }
       const row = h('div', 'item' + (animate ? ' enter' : '')); row.style.setProperty('--i', i++);
-      const meta = add(h('div', 'meta'), h('b', 0, t.category), h('small', 0, t.note || (t.type === 'income' ? 'Income' : 'Expense')));
-      const edit = h('button', 'del', 'Edit'); edit.onclick = () => openEntry(t);
-      const del = h('button', 'del', 'Delete'); let timer;
+      const meta = add(h('div', 'meta'), h('b', 0, t.note || t.category), h('small', 0, t.note ? t.category : (t.type === 'income' ? 'Income' : 'Expense') + ' · No note'));
+      const edit = h('button', 'del icon-action'); edit.setAttribute('aria-label', 'Edit ' + (t.note || t.category));
+      edit.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-.8L19 8.2 15.8 5 4.8 16zM14.5 6.3l3.2 3.2"/></svg>'; edit.onclick = () => openEntry(t);
+      const del = h('button', 'del icon-action'); del.setAttribute('aria-label', 'Delete ' + (t.note || t.category));
+      const trash = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 4h4M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>'; del.innerHTML = trash; let timer;
       del.onclick = async () => {
         if (!del.classList.contains('sure')) {
-          del.classList.add('sure'); del.textContent = 'Sure?';
-          timer = setTimeout(() => { del.classList.remove('sure'); del.textContent = 'Delete'; }, 2500); return;
+          del.classList.add('sure'); del.textContent = 'Sure?'; del.setAttribute('aria-label', 'Confirm delete ' + (t.note || t.category));
+          timer = setTimeout(() => { del.classList.remove('sure'); del.innerHTML = trash; del.setAttribute('aria-label', 'Delete ' + (t.note || t.category)); }, 2500); return;
         }
         clearTimeout(timer); row.classList.add('removing');
         const { error } = await sb.from('transactions').delete().eq('id', t.id);
@@ -479,7 +481,7 @@
   $('#menuProfile').onclick = () => {
     $('#profileName').value = user.user_metadata?.display_name || '';
     $('#profileEmail').value = user.email || '';
-    $('#profileMsg').textContent = ''; openMenuSheet('#profileSheet'); $('#profileName').focus();
+    $('#profileMsg').textContent = ''; $('#passwordForm').reset(); $('#passwordMsg').textContent = ''; openMenuSheet('#profileSheet'); $('#profileName').focus();
   };
   $('#profileForm').onsubmit = async e => {
     e.preventDefault(); const name = $('#profileName').value.trim();
@@ -491,6 +493,19 @@
       user = data.user; say($('#profileMsg'), 'Profile saved.', true);
     } catch (error) { say($('#profileMsg'), error.message || 'Could not save your profile.'); }
     finally { setBusy($('#profileSave'), false); }
+  };
+  $('#passwordForm').onsubmit = async e => {
+    e.preventDefault();
+    const password = $('#newPassword').value, confirmation = $('#confirmPassword').value, msg = $('#passwordMsg');
+    if (password.length < 6) return say(msg, 'Use at least 6 characters.');
+    if (password !== confirmation) return say(msg, 'Passwords do not match.');
+    setBusy($('#passwordSave'), true);
+    try {
+      const { error } = await sb.auth.updateUser({ password });
+      if (error) return say(msg, error.message);
+      $('#passwordForm').reset(); say(msg, 'Password changed.', true);
+    } catch (error) { say(msg, error.message || 'Could not change your password.'); }
+    finally { setBusy($('#passwordSave'), false); }
   };
 
   function renderChips() {

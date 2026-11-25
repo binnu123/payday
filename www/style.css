@@ -253,4 +253,13 @@ body.in-app .fab:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--
 .menu-arrow { color:var(--muted); font-size:22px; }
 .menu-logout b { color:#e5a69d; }
 #profileSheet .act { margin-top:14px; }
+#profileSheet { max-height:85vh; overflow-y:auto; }
+#passwordForm { margin-top:24px; padding-top:12px; border-top:1px solid var(--line); }
+.item { gap:6px; padding:12px 8px; }
+.item .meta b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.item .amt { white-space:nowrap; font-size:13px; }
+.icon-action { display:grid; place-items:center; flex:none; width:32px; height:40px; padding:0; border-radius:9px; }
+.icon-action svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+.icon-action.sure { width:auto; min-width:40px; font-size:11px; }
+.icon-action:focus-visible { outline:2px solid var(--gold); outline-offset:1px; }
 @media (prefers-reduced-motion:reduce) { .menu-item, .menu-open, #menuSheet, .overlay { transition:none; } }
