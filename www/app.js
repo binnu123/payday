@@ -99,12 +99,20 @@
     finally { if (recoverySession) await sb.auth.signOut(); recovering = false; setBusy($('#recoverSave'), false); }
   };
   function enterApp() {
+    month = monthStart(new Date());
     $('#authForm').reset(); $('#authMsg').textContent = '';
     document.body.classList.add('in-app'); show('shell'); switchTab('home'); loadAll();
   }
 
   /* ---------- data ---------- */
+  const monthStart = d => new Date(d.getFullYear(), d.getMonth(), 1);
+  const firstMonth = () => {
+    const created = new Date(user?.created_at);
+    return Number.isNaN(created.getTime()) ? monthStart(new Date()) : monthStart(created);
+  };
   async function loadTx() {
+    $('#prev').disabled = month <= firstMonth();
+    $('#next').disabled = month >= monthStart(new Date());
     $('#monthLabel').textContent = month.toLocaleDateString('en', { month: 'long', year: 'numeric' });
     const next = new Date(month.getFullYear(), month.getMonth() + 1, 1);
     const { data, error } = await sb.from('transactions').select('*').gte('date', ymd(month)).lt('date', ymd(next))
@@ -135,8 +143,8 @@
     }
     renderHome(animate); if (tab === 'loans') renderLoans(false); if (tab === 'save') renderSave(false);
   }
-  $('#prev').onclick = () => { month.setMonth(month.getMonth() - 1); loadAll(); };
-  $('#next').onclick = () => { month.setMonth(month.getMonth() + 1); loadAll(); };
+  $('#prev').onclick = () => { if (month > firstMonth()) { month.setMonth(month.getMonth() - 1); loadAll(); } };
+  $('#next').onclick = () => { if (month < monthStart(new Date())) { month.setMonth(month.getMonth() + 1); loadAll(); } };
 
   /* ---------- tabs ---------- */
   function switchTab(t) {
@@ -200,8 +208,12 @@
     const overview = $('#homeLoans'); overview.replaceChildren();
     if (loanErr || flexErr) overview.append(h('p', 'small', 'Loan overview unavailable. Check the Loans tab.'));
     else {
-      const loanSum = kind => loans.filter(l => l.kind === kind).reduce((a, l) => a + rem(l), 0) + flexLoans.filter(l => l.kind === kind).reduce((a, l) => a + Math.max(0, Number(l.principal) - flexPaid(l)), 0);
-      [['You will receive', 'lent'], ['You owe', 'borrowed']].forEach(([label, kind]) => overview.append(add(h('div', 'card'), h('span', 'label', label), h('b', kind === 'lent' ? 'mint' : 'coral', money(loanSum(kind))))));
+      [['Lent', 'lent'], ['Borrowed', 'borrowed']].forEach(([label, kind]) => {
+        const fixed = loans.filter(l => l.kind === kind), flexible = flexLoans.filter(l => l.kind === kind);
+        const total = fixed.reduce((sum, l) => sum + Number(l.emi) * Number(l.total_emis), 0) + flexible.reduce((sum, l) => sum + Number(l.principal), 0);
+        const remaining = fixed.reduce((sum, l) => sum + rem(l), 0) + flexible.reduce((sum, l) => sum + Math.max(0, Number(l.principal) - flexPaid(l)), 0);
+        overview.append(add(h('div', 'card'), h('span', 'label', label), h('p', 'small', 'Total ' + money(total)), h('b', kind === 'lent' ? 'mint' : 'coral', 'Remaining ' + money(remaining))));
+      });
     }
     const spending = $('#homeSpending'); spending.replaceChildren();
     const categories = {}; txs.filter(t => t.type === 'expense').forEach(t => { categories[t.category] = (categories[t.category] || 0) + Number(t.amount); });
@@ -702,13 +714,16 @@
     $('#saveBtn span').textContent = entry ? 'Update entry' : 'Save entry';
     $('#curSym').textContent = (0).toLocaleString(cfg.LOCALE || 'en-IN', { style: 'currency', currency: cfg.CURRENCY || 'INR', minimumFractionDigits: 0 }).replace(/[\d\s.,]/g, '');
     $('#amount').value = entry ? entry.amount : ''; $('#note').value = entry ? (entry.note || '') : ''; $('#sheetMsg').textContent = ''; $('#date').value = entry ? entry.date : ymd(new Date());
+    $('#date').min = ymd(month); $('#date').max = ymd(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+    if (!entry && ($('#date').value < $('#date').min || $('#date').value > $('#date').max)) $('#date').value = $('#date').min;
     renderChips(); $('#overlay').classList.add('open'); $('#sheet').classList.add('open'); setTimeout(() => $('#amount').focus(), 380);
   }
   $('#saveBtn').onclick = async () => {
     const amount = parseFloat($('#amount').value.replace(/,/g, ''));
     if (!(amount > 0)) return say($('#sheetMsg'), 'Enter an amount greater than 0.');
+    const date = $('#date').value;
+    if (!date || date < $('#date').min || date > $('#date').max) return say($('#sheetMsg'), 'Choose a date in the selected month.');
     setBusy($('#saveBtn'), true);
-    const date = $('#date').value || ymd(new Date());
     const values = { type, amount, category: cat, note: $('#note').value.trim() || null, date };
     const { error } = editingTx ? await sb.from('transactions').update(values).eq('id', editingTx.id) : await sb.from('transactions').insert(values);
     setBusy($('#saveBtn'), false);
