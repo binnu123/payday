@@ -1,5 +1,9 @@
 # Payday
 
+## Import bank SMS
+
+Run the latest `supabase.sql` and install a newly built APK. In Account, select **Import bank SMS** and grant SMS access. Payday scans up to the latest 1,000 inbox messages on demand; it does not continuously monitor messages. Review the original message, debit or credit, amount and bank or sender, then save each entry. SMS text stays on the device; saved entries sync to Supabase. The sender can be an SMS code rather than a bank name. Messages and formats vary, so some will be missed or interpreted incorrectly. SMS access can be revoked in Android app settings. This feature requires Android and is not available through a web-only update.
+
 1. Supabase: run `supabase.sql` in the SQL Editor. (Optional: Auth > Providers > Email > turn off "Confirm email" for instant signup.)
 2. Put your project URL and anon key in `www/config.js`.
 3. Push this folder to a GitHub repo (branch `main`).

@@ -136,10 +136,17 @@
     <button id="menuProfile" class="menu-item"><span class="menu-icon" aria-hidden="true">◉</span><span
         class="menu-copy"><b>Profile</b><small>Manage your account details</small></span><span class="menu-arrow"
         aria-hidden="true">›</span></button>
+    <button id="importSms" class="menu-item"><span class="menu-icon" aria-hidden="true">✉</span><span class="menu-copy"><b>Import bank SMS</b><small>Review debit and credit messages</small></span><span class="menu-arrow" aria-hidden="true">›</span></button>
     <button id="testNotification" class="menu-item"><span class="menu-icon" aria-hidden="true">♧</span><span
         class="menu-copy"><b>Test notification</b><small>Send a notification to this device</small></span><span
         class="menu-arrow" aria-hidden="true">›</span></button>
     <p id="testNotificationMsg" class="msg" role="status"></p>
+  </div>
+
+  <div id="smsSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="smsTitle" aria-hidden="true">
+    <div class="grab"></div><h2 id="smsTitle">Bank SMS</h2>
+    <p class="small">Review each match carefully. SMS stays on this device; only entries you save are uploaded. The sender may be a bank's SMS code.</p>
+    <p id="smsMsg" class="msg" role="status"></p><div id="smsResults"></div>
   </div>
 
   <div id="profileSheet" class="sheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle"
@@ -270,6 +277,7 @@
   <script src="config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="split-math.js"></script>
+  <script src="sms-parser.js"></script>
   <script src="app.js"></script>
 </body>
 

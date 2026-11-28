@@ -657,6 +657,44 @@
     closeSheets(); $('#overlay').classList.add('open'); $(id).classList.add('open'); $(id).setAttribute('aria-hidden', 'false');
   }
   $('#menuOpen').onclick = () => openMenuSheet('#menuSheet');
+  $('#importSms').onclick = async () => {
+    openMenuSheet('#smsSheet');
+    const box = $('#smsResults'), msg = $('#smsMsg'); box.replaceChildren();
+    const plugin = window.Capacitor?.Plugins?.BankSms;
+    if (!plugin || !window.Capacitor?.isNativePlatform()) return say(msg, 'SMS import is available in the updated Android app.');
+    say(msg, 'Reading your recent SMS…');
+    try {
+      const result = await plugin.read();
+      const matches = (result.messages || []).map(PaydaySms.parse).filter(x => x && Number.isFinite(x.date));
+      say(msg, matches.length ? `Found ${matches.length} possible transactions. Check the amount and sender before saving.` : 'No matching transactions found in the most recent 1,000 messages.', !!matches.length);
+      for (const item of matches) {
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([item.sender, item.body, item.date])));
+        const source = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+        const card = h('div', 'card');
+        const description = h('p', 'small', item.body);
+        const amount = h('input'); amount.type = 'number'; amount.min = '0.01'; amount.step = '0.01'; amount.value = item.amount;
+        const label = h('label', null, 'Amount'); label.append(amount);
+        const kind = h('select');
+        [['expense', 'Debit / expense'], ['income', 'Credit / income']].forEach(([value, title]) => { const o = h('option', null, title); o.value = value; kind.append(o); }); kind.value = item.type;
+        const kindLabel = h('label', null, 'Type'); kindLabel.append(kind);
+        const sender = h('input'); sender.value = item.sender; sender.maxLength = 80;
+        const senderLabel = h('label', null, 'Bank or sender'); senderLabel.append(sender);
+        const save = h('button', 'act', 'Save entry'); save.type = 'button';
+        const status = h('p', 'msg');
+        save.onclick = async () => {
+          const value = Number(amount.value); if (!(value > 0)) return say(status, 'Enter an amount greater than zero.');
+          setBusy(save, true);
+          try {
+            const { error } = await sb.from('transactions').insert({ type: kind.value, amount: value, category: 'Other', note: sender.value.trim().slice(0, 80) || null, date: ymd(new Date(item.date)), sms_source: source });
+            if (error) return say(status, error.code === '23505' ? 'This message was already imported.' : error.message);
+            save.textContent = 'Saved'; save.disabled = true; say(status, 'Saved.', true); await loadAll(false);
+          } catch (e) { say(status, e.message || 'Could not save entry.'); }
+          finally { if (save.textContent !== 'Saved') setBusy(save, false); else save.classList.remove('busy'); }
+        };
+        card.append(h('b', null, new Date(item.date).toLocaleDateString()), description, kindLabel, label, senderLabel, save, status); box.append(card);
+      }
+    } catch (error) { say(msg, error.message || 'Could not read SMS.'); }
+  };
   $('#testNotification').onclick = async () => {
     const button = $('#testNotification'), msg = $('#testNotificationMsg'), plugin = notifications();
     if (!plugin) return say(msg, 'Test notifications are available in the installed Android app.');

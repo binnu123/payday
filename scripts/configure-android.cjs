@@ -9,3 +9,6 @@ replace('android/variables.gradle', /compileSdkVersion\s*=\s*\d+/, 'compileSdkVe
 replace('android/variables.gradle', /minSdkVersion\s*=\s*\d+/, 'minSdkVersion = 23');
 replace('android/build.gradle', /com\.android\.tools\.build:gradle:[\d.]+/, 'com.android.tools.build:gradle:8.7.2');
 replace('android/gradle/wrapper/gradle-wrapper.properties', /gradle-[\d.]+-all\.zip/, 'gradle-8.9-all.zip');
+fs.copyFileSync('native/android/BankSmsPlugin.java', 'android/app/src/main/java/com/payday/tracker/BankSmsPlugin.java');
+replace('android/app/src/main/java/com/payday/tracker/MainActivity.java', /public class MainActivity extends BridgeActivity \{/, 'public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(BankSmsPlugin.class);\n        super.onCreate(savedInstanceState);\n    }');
+replace('android/app/src/main/AndroidManifest.xml', /<application/, '<uses-permission android:name="android.permission.READ_SMS" />\n    <application');

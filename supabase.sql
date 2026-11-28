@@ -11,6 +11,8 @@ create table if not exists public.transactions (
 );
 
 alter table public.transactions enable row level security;
+alter table public.transactions add column if not exists sms_source text;
+create unique index if not exists transactions_user_sms_source on public.transactions (user_id, sms_source) where sms_source is not null;
 
 do $$
 begin
